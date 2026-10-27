@@ -1,0 +1,11 @@
+dotenv/config
+
+.env
+env
+
+
+node_modules
+.claude
+
+dist
+/dist
