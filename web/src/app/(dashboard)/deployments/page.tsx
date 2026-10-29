@@ -404,7 +404,7 @@ export default function DeploymentsPage() {
             className="gap-2"
           >
             <RefreshCw
-              className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              className={`h-4 w-4 text-white ${loading ? "animate-spin" : ""}`}
             />
             Refresh
           </Button>

@@ -228,7 +228,7 @@ export default function CustomerSettingsPage() {
           </Card>
         </Link>
 
-        <Link href="/payments" className="group block">
+        <Link href="payments" className="group block">
           <Card className="h-full transition-colors hover:border-zinc-400 dark:hover:border-zinc-600">
             <CardHeader>
               <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">

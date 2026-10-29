@@ -160,12 +160,22 @@ router.get(
     try {
       const [rows] = await getPool().query(
         `SELECT
-           id,
-           action,
-           created_at AS createdAt
-         FROM audit_logs
-         ORDER BY created_at DESC
-         LIMIT 20`,
+           a.id,
+           a.action,
+           a.created_at AS createdAt,
+           a.actor_user_id AS actorUserId,
+           COALESCE(u.display_name, u.email, 'Deleted user') AS actor,
+           a.project_id AS projectId,
+           a.resource_type AS resourceType,
+           a.resource_id AS resourceId,
+           a.request_id AS requestId,
+           a.metadata,
+           COALESCE(p.slug, a.resource_id) AS resource
+         FROM audit_logs a
+         LEFT JOIN users u ON u.id = a.actor_user_id
+         LEFT JOIN projects p ON p.id = a.project_id
+         ORDER BY a.created_at DESC
+         LIMIT 100`,
       );
 
       res.json({ data: rows });

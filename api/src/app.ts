@@ -14,12 +14,14 @@ import healthRoutes from "./routes/health.routes";
 import authRoutes from "./routes/auth.routes";
 import projectRoutes from "./routes/projects.routes";
 import generationRoutes from "./routes/generation.routes";
+import documentRoutes from "./routes/documents.routes";
 import adminRoutes from "./routes/admin.routes";
 import billingRoutes from "./routes/billing.routes";
 import domainRoutes from "./routes/domains.routes";
 import deploymentRoutes from "./routes/deployments.routes";
 import supportRoutes from "./routes/support.routes";
 import customerRoutes from "./routes/customer.routes";
+import { servePublicSite } from "./routes/public-sites.routes";
 import session from "express-session";
 
 
@@ -28,7 +30,8 @@ const app = express();
 // Security headers & CORS
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: config.corsOrigin, credentials: true }));
-app.use(express.json({ limit: "1mb" }));
+// Editable documents embed optimized local image assets; allow several uploads per project.
+app.use(express.json({ limit: "12mb" }));
 app.use(cookieParser());
 
 // Session middleware — must be before authentication routes
@@ -62,12 +65,16 @@ app.use("/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/generation", generationRoutes);
+app.use("/api/documents", documentRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/domains", domainRoutes);
 app.use("/api/deployments", deploymentRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/customer", customerRoutes);
+
+// Wildcard project hosts are rendered from the published component document.
+app.use(servePublicSite);
 
 // 404 handler
 app.use((_req, res) => {

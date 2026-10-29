@@ -1,12 +1,29 @@
 /**
  * Generation routes - create generation jobs and check their status.
+ *
+ * The AI no longer writes HTML. It returns a JSON page tree built ONLY from the component
+ * library (@cms/component-library). The server validates it (with automatic repair rounds),
+ * stores it as site.json and renders the preview HTML from it.
  */
 import { Router, Request, Response, NextFunction } from "express";
+import { recordAuditLog } from "../../lib/audit-log";
+import { DocumentGenerationError, generateDocument } from "@cms/component-library";
 import { getPool } from "../../lib/db";
 import { config } from "../../lib/env";
-import { OllamaProvider, AnthropicProvider } from "../modules/ai/providers/base";
+import {
+  AnthropicProvider,
+  GroqProvider,
+  OllamaProvider,
+  OllamaUnavailableError,
+  type AIProvider,
+} from "../modules/ai/providers/base";
+import { loadDocument, saveDocumentVersion, withTransaction } from "../modules/documents/document-store";
+import { getPublicSiteUrl } from "../modules/sites/public-site-config";
 
 const router = Router();
+
+/** How many times the model may be asked to fix an invalid document. */
+const MAX_ATTEMPTS = Math.max(1, Number(process.env.AI_MAX_ATTEMPTS) || 3);
 
 function getUserId(req: Request): number | null {
   return (req as any).session?.userId ?? null;
@@ -20,41 +37,22 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
 
     if (!userId) {
       return res.status(401).json({
-        error: {
-          code: "UNAUTHORIZED",
-          message: "Not authenticated.",
-          requestId: (req as any).requestId,
-        },
+        error: { code: "UNAUTHORIZED", message: "Not authenticated.", requestId: (req as any).requestId },
       });
     }
 
-    const projectSlug =
-      typeof req.body?.projectSlug === "string"
-        ? req.body.projectSlug.trim()
-        : "";
-
-    const prompt =
-      typeof req.body?.prompt === "string"
-        ? req.body.prompt.trim()
-        : "";
+    const projectSlug = typeof req.body?.projectSlug === "string" ? req.body.projectSlug.trim() : "";
+    const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
 
     if (!projectSlug || !prompt) {
       return res.status(400).json({
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "projectSlug and prompt are required.",
-          requestId: (req as any).requestId,
-        },
+        error: { code: "VALIDATION_ERROR", message: "projectSlug and prompt are required.", requestId: (req as any).requestId },
       });
     }
 
     if (prompt.length > 50000) {
       return res.status(400).json({
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "Prompt must be 50,000 characters or fewer.",
-          requestId: (req as any).requestId,
-        },
+        error: { code: "VALIDATION_ERROR", message: "Prompt must be 50,000 characters or fewer.", requestId: (req as any).requestId },
       });
     }
 
@@ -72,11 +70,7 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
 
     if (projects.length === 0) {
       return res.status(404).json({
-        error: {
-          code: "NOT_FOUND",
-          message: "Project not found.",
-          requestId: (req as any).requestId,
-        },
+        error: { code: "NOT_FOUND", message: "Project not found.", requestId: (req as any).requestId },
       });
     }
 
@@ -96,16 +90,18 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
     );
 
     const jobId = Number((insertResult as any).insertId);
+    await recordAuditLog({
+      actorUserId: userId,
+      projectId,
+      action: "generation.started",
+      resourceType: "generation_job",
+      resourceId: jobId,
+      request: req,
+    });
 
     // Start processing after responding to the client.
     // For reliable production processing across restarts, use a durable worker/queue.
-    res.status(201).json({
-      data: {
-        jobId,
-        projectId,
-        status: "queued",
-      },
-    });
+    res.status(201).json({ data: { jobId, projectId, status: "queued" } });
 
     void runGeneration(jobId, projectId, userId, prompt).catch((err) => {
       console.error(`[Generation] Job ${jobId} failed unexpectedly:`, err);
@@ -115,7 +111,6 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
     next(err);
   }
 });
-
 
 // Get generation job status
 router.get("/:jobId", async (req: Request, res: Response, next: NextFunction) => {
@@ -128,7 +123,7 @@ router.get("/:jobId", async (req: Request, res: Response, next: NextFunction) =>
 
     const [rows] = await getPool().query(
       "SELECT id, project_id, status, progress_percent, error_code, error_message, result_version_id, started_at, finished_at, created_at, updated_at FROM generation_jobs WHERE id = ? AND requested_by_user_id = ?",
-      [jobId, userId]
+      [jobId, userId],
     );
     const job = (rows as Array<any>).pop();
 
@@ -138,72 +133,24 @@ router.get("/:jobId", async (req: Request, res: Response, next: NextFunction) =>
   } catch (err) { next(err); }
 });
 
-// Run the generation
-/**
- * Extract a complete HTML document from an AI response.
- * Supports raw HTML and HTML inside Markdown code fences.
- */
-
-/**
- * Extract a complete HTML document from an AI response.
- * Supports raw HTML, Markdown fences, and introductory prose.
- */
-function extractHtml(response: string): string | null {
-  const text = response.trim();
-
-  if (!text) return null;
-
-  // Prefer a complete HTML document inside a Markdown fence.
-  const fencedBlocks = [
-    ...text.matchAll(/```(?:html|htm)\s*\n?([\s\S]*?)```/gi),
-  ];
-
-  const candidates = [
-    ...fencedBlocks.map((match) => match[1].trim()),
-    text,
-  ];
-
-  for (const candidate of candidates) {
-    const doctypeIndex = candidate.search(/<!doctype\s+html\b/i);
-    const htmlIndex = candidate.search(/<html(?:\s|>)/i);
-
-    const start =
-      doctypeIndex >= 0
-        ? doctypeIndex
-        : htmlIndex;
-
-    if (start < 0) continue;
-
-    const html = candidate.slice(start).trim();
-
-    // A complete document must have both opening and closing tags.
-    if (
-      /<html(?:\s|>)/i.test(html) &&
-      /<\/html\s*>/i.test(html)
-    ) {
-      return html;
-    }
-  }
-
-  return null;
+function createProvider(): AIProvider {
+  return config.aiProvider === "anthropic"
+    ? new AnthropicProvider(config.anthropicApiKey, config.anthropicModel)
+    : new OllamaProvider(config.ollamaBaseUrl, config.ollamaModel);
 }
 
+function createGroqFallback(): AIProvider {
+  return new GroqProvider(config.groqApiKey, config.groqModel);
+}
 
-async function runGeneration(
-  jobId: number,
-  projectId: number,
-  userId: number,
-  prompt: string,
-): Promise<void> {
-  const systemPrompt = [
-    "You are a professional website builder AI.",
-    "Generate a complete, responsive, production-quality website.",
-    "Return a single, complete, valid HTML document.",
-    "Include all CSS and JavaScript inside the HTML document.",
-    "Do not truncate the output.",
-    "Do not include explanations or Markdown code fences.",
-    "Ensure the document includes closing HTML tags.",
-  ].join(" ");
+async function setProgress(jobId: number, percent: number): Promise<void> {
+  await getPool().query(`UPDATE generation_jobs SET progress_percent = ? WHERE id = ?`, [percent, jobId]);
+}
+
+async function runGeneration(jobId: number, projectId: number, userId: number, prompt: string): Promise<void> {
+  let actualProvider: string = config.aiProvider;
+  let actualModel =
+    config.aiProvider === "anthropic" ? config.anthropicModel : config.ollamaModel;
 
   try {
     await getPool().query(
@@ -217,140 +164,108 @@ async function runGeneration(
       [jobId],
     );
 
-    const provider: any =
-      config.aiProvider === "anthropic"
-        ? new AnthropicProvider(
-          config.anthropicApiKey,
-          config.anthropicModel,
-        )
-        : new OllamaProvider(
-          config.ollamaBaseUrl,
-          config.ollamaModel,
-        );
+    // An existing document means this is a modification request, not a fresh site.
+    const existing = await loadDocument(projectId);
+    const provider = createProvider();
 
-    const result = await provider.generate({
+    const result = await generateDocument({
       prompt,
-      systemPrompt,
+      current: existing?.document ?? null,
+      maxAttempts: MAX_ATTEMPTS,
+      onAttempt: (attempt) => {
+        console.info("[Generation] Attempt", { jobId, attempt, modifying: !!existing });
+        void setProgress(jobId, Math.min(60, 20 + attempt * 15)).catch(() => undefined);
+      },
+      complete: async ({ system, prompt: userPrompt, history }) => {
+        const input = {
+          systemPrompt: system,
+          prompt: userPrompt,
+          history,
+          jsonMode: true,
+        } as const;
+        let out;
+        try {
+          out = await provider.generate(input);
+        } catch (error) {
+          if (
+            config.aiProvider !== "ollama" ||
+            !(error instanceof OllamaUnavailableError)
+          ) {
+            throw error;
+          }
+
+          if (!config.groqApiKey) {
+            throw new Error(
+              `${error.message} Configure GROQ_API_KEY to enable Groq fallback.`,
+            );
+          }
+
+          actualProvider = "groq";
+          actualModel = config.groqModel;
+          await getPool().query(
+            "UPDATE generation_jobs SET provider = ?, model = ? WHERE id = ?",
+            [actualProvider, actualModel, jobId],
+          );
+          console.warn("[AI] Ollama unavailable; using configured Groq fallback.", {
+            jobId,
+            ollamaStatus: error.status ?? null,
+            fallbackModel: actualModel,
+          });
+          out = await createGroqFallback().generate(input);
+        }
+        if (typeof out?.text !== "string" || !out.text.trim()) {
+          throw new Error("The AI provider returned an empty response.");
+        }
+        return out.text;
+      },
     });
 
-    if (typeof result?.text !== "string" || !result.text.trim()) {
-      throw new Error("The AI provider returned an empty response.");
-    }
-
-
-    const rawResponse: string = result.text;
-    const html = extractHtml(rawResponse);
-
-    if (!html) {
-      console.error("[Generation] Incomplete HTML response:", {
-        jobId,
-        responseCharacters: rawResponse.length,
-        responseBytes: Buffer.byteLength(rawResponse, "utf8"),
-        responseEnding: rawResponse.slice(-300),
-      });
-
-      throw new Error(
-        `The AI returned incomplete HTML (${rawResponse.length} characters). ` +
-        "Check the model output limit and generation logs, then retry.",
-      );
-    }
-
-    console.info("[Generation] HTML extracted:", {
+    console.info("[Generation] Document accepted:", {
       jobId,
-      responseCharacters: rawResponse.length,
-      htmlCharacters: html.length,
-      htmlBytes: Buffer.byteLength(html, "utf8"),
+      attempts: result.attempts,
+      pages: result.document.pages.length,
+      warnings: result.warnings.length,
     });
 
+    await setProgress(jobId, 80);
 
-    await getPool().query(
-      `UPDATE generation_jobs
-       SET progress_percent = 70
-       WHERE id = ?`,
-      [jobId],
-    );
-
-    // Save the version and project counter atomically.
-    const connection = await getPool().getConnection();
-
-    let versionId: number;
-    let versionNumber: number;
-
-    try {
-      await connection.beginTransaction();
-
-      // Lock the project row to prevent concurrent generations
-      // from assigning the same version number.
-      const [projectRows] = await connection.query(
-        `SELECT id, current_version_number
-         FROM projects
-         WHERE id = ?
-           AND owner_user_id = ?
-           AND deleted_at IS NULL
-         FOR UPDATE`,
-        [projectId, userId],
+    // Saving, publishing, and registering its deployment are atomic.
+    const saved = await withTransaction(async (conn) => {
+      const v = await saveDocumentVersion(conn, {
+        projectId,
+        userId,
+        document: result.document,
+        sourcePrompt: prompt,
+        rawResponse: result.raw,
+      });
+      const [projectRows] = await conn.query(
+        "SELECT platform_subdomain FROM projects WHERE id = ? FOR UPDATE",
+        [projectId],
       );
-
-      const project = (projectRows as any[])[0];
-
-      if (!project) {
-        throw new Error(
-          "The project was deleted or is no longer accessible.",
-        );
+      const project = (projectRows as Array<{ platform_subdomain: string | null }>)[0];
+      if (!project?.platform_subdomain) {
+        throw new Error("The project does not have a reserved public subdomain.");
       }
 
-      versionNumber = Number(project.current_version_number) + 1;
-
-      const [versionResult] = await connection.query(
-        `INSERT INTO project_versions (
-           project_id,
-           version_number,
-           source_prompt,
-           summary,
-           status,
-           created_by_user_id
-         )
-         VALUES (?, ?, ?, ?, 'ready', ?)`,
-        [
-          projectId,
-          versionNumber,
-          prompt.slice(0, 5000),
-          html,
-          userId,
-        ],
-      );
-
-      versionId = Number((versionResult as any).insertId);
-
-      // Keep the original AI output for debugging and future editing.
-      // The preview uses project_versions.summary, which now contains HTML.
-      await connection.query(
-        `INSERT INTO project_files (
-           project_version_id,
-           file_path,
-           content,
-           size_bytes
-         )
-         VALUES (?, ?, ?, ?)`,
-        [
-          versionId,
-          "GENERATED_MANIFEST.md",
-          rawResponse,
-          Buffer.byteLength(rawResponse, "utf8"),
-        ],
-      );
-
-      await connection.query(
+      const deploymentUrl = getPublicSiteUrl(project.platform_subdomain);
+      await conn.query(
         `UPDATE projects
-         SET current_version_number = ?,
-             status = 'ready',
-             updated_at = NOW(3)
-         WHERE id = ?
-           AND owner_user_id = ?`,
-        [versionNumber, projectId, userId],
+         SET status = 'published', visibility = 'public', updated_at = NOW(3)
+         WHERE id = ?`,
+        [projectId],
       );
-
-      await connection.query(
+      await conn.query(
+        `UPDATE project_versions SET status = 'published' WHERE id = ?`,
+        [v.versionId],
+      );
+      const [deploymentResult] = await conn.query(
+        `INSERT INTO deployments
+           (project_id, project_version_id, created_by_user_id, target, status,
+            deployment_url, build_id, started_at, finished_at)
+         VALUES (?, ?, ?, 'platform', 'succeeded', ?, ?, NOW(3), NOW(3))`,
+        [projectId, v.versionId, userId, deploymentUrl, `generation-${jobId}`],
+      );
+      await conn.query(
         `UPDATE generation_jobs
          SET status = 'succeeded',
              progress_percent = 100,
@@ -359,27 +274,46 @@ async function runGeneration(
              error_message = NULL,
              finished_at = NOW(3)
          WHERE id = ?`,
-        [versionId, jobId],
+        [v.versionId, jobId],
       );
+      return { ...v, deploymentId: Number((deploymentResult as any).insertId), deploymentUrl };
+    });
 
-      await connection.commit();
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-
-    console.info("[Generation] Completed:", {
-      jobId,
+    console.info("[Generation] Completed:", { jobId, projectId, versionId: saved.versionId, versionNumber: saved.versionNumber });
+    await recordAuditLog({
+      actorUserId: userId,
       projectId,
-      versionId,
-      versionNumber,
-      htmlBytes: Buffer.byteLength(html, "utf8"),
+      action: "generation.completed",
+      resourceType: "generation_job",
+      resourceId: jobId,
+      metadata: { versionNumber: saved.versionNumber },
+    });
+    await recordAuditLog({
+      actorUserId: userId,
+      projectId,
+      action: "deployment.published",
+      resourceType: "deployment",
+      resourceId: saved.deploymentId,
+      metadata: { versionNumber: saved.versionNumber, url: saved.deploymentUrl },
     });
   } catch (err: any) {
     console.error(`[Generation] Job ${jobId} failed:`, err);
 
+    const code = err instanceof DocumentGenerationError ? err.code : "GENERATION_FAILED";
+    if (actualProvider === "groq") {
+      await getPool().query(
+        "UPDATE generation_jobs SET provider = ?, model = ? WHERE id = ?",
+        [actualProvider, actualModel, jobId],
+      );
+    }
+    await recordAuditLog({
+      actorUserId: userId,
+      projectId,
+      action: "generation.failed",
+      resourceType: "generation_job",
+      resourceId: jobId,
+      metadata: { errorCode: code },
+    });
     await getPool().query(
       `UPDATE generation_jobs
        SET status = 'failed',
@@ -388,14 +322,9 @@ async function runGeneration(
            progress_percent = 100,
            finished_at = NOW(3)
        WHERE id = ?`,
-      [
-        "GENERATION_FAILED",
-        String(err?.message || "Unknown generation error").slice(0, 5000),
-        jobId,
-      ],
+      [code, String(err?.message || "Unknown generation error").slice(0, 5000), jobId],
     );
   }
 }
-
 
 export default router;

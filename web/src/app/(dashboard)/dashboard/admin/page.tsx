@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   FolderGit2,
   Shield,
@@ -70,8 +71,8 @@ async function apiGet(path: string) {
   if (!response.ok) {
     throw new Error(
       result?.error?.message ||
-        result?.message ||
-        `Request failed (${response.status}).`,
+      result?.message ||
+      `Request failed (${response.status}).`,
     );
   }
 
@@ -103,10 +104,10 @@ function extractStats(result: any): AdminStats {
     ),
     revenueThisMonth: Number(
       value.revenueThisMonth ??
-        value.revenue_this_month ??
-        value.revenueMTD ??
-        value.revenue_mtd ??
-        0,
+      value.revenue_this_month ??
+      value.revenueMTD ??
+      value.revenue_mtd ??
+      0,
     ),
   };
 }
@@ -124,7 +125,15 @@ function extractActivity(result: any): Activity[] {
     message:
       item.message ??
       item.description ??
-      item.action ??
+      [
+        item.actor,
+        typeof item.action === "string"
+          ? item.action.replace(/[._]/g, " ")
+          : null,
+        item.resource ? `(${item.resource})` : null,
+      ]
+        .filter(Boolean)
+        .join(" ") ??
       "Activity recorded",
     createdAt: item.createdAt ?? item.created_at,
     timeAgo: item.timeAgo ?? item.time_ago,
@@ -137,13 +146,6 @@ function formatTime(activity: Activity) {
 
   const date = new Date(activity.createdAt);
   if (Number.isNaN(date.getTime())) return "Recent";
-
-  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-
-  if (seconds < 60) return "Just now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
 
   return date.toLocaleDateString();
 }
@@ -216,7 +218,7 @@ export default function AdminDashboardPage() {
 
         setStats(extractStats(statsResult));
         setActivity(extractActivity(activityResult));
-      } catch (err) {
+      } catch {
         if (cancelled) return;
 
         // An unauthenticated or unverifiable session must not see the dashboard.
@@ -256,21 +258,28 @@ export default function AdminDashboardPage() {
     },
   ];
 
+
   if (loading || !user) {
     return (
       <AppShell
         sidebarItems={sidebarItems}
         user={{ name: "Loading...", email: "" }}
       >
-        <div className="flex min-h-[50vh] items-center justify-center gap-3 text-sm text-zinc-500">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Verifying administrator access...
+        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-indigo-400/20 bg-indigo-400/[0.08]">
+            <Loader2 className="h-5 w-5 animate-spin text-indigo-300" />
+          </div>
+          <p className="text-sm text-zinc-500">
+            Verifying administrator access...
+          </p>
         </div>
       </AppShell>
     );
   }
 
+
   return (
+
     <AppShell
       sidebarItems={sidebarItems}
       user={{
@@ -278,90 +287,131 @@ export default function AdminDashboardPage() {
         email: user.email,
       }}
     >
-      <PageHeader
-        title="Admin dashboard"
-        description="Platform overview and management."
-      />
+      <div className="space-y-8 text-zinc-100">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <PageHeader
+            title="Admin dashboard"
+            description="Platform overview and management."
+          />
 
-      <div className="mb-6 flex justify-end">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => void loadDashboardData()}
-          disabled={dataLoading}
-        >
-          {dataLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-4 w-4" />
-          )}
-          Refresh data
-        </Button>
-      </div>
-
-      {error && (
-        <div
-          role="alert"
-          className="mb-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
-        >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <p className="font-medium">Could not load all dashboard data</p>
-            <p className="mt-1">{error}</p>
-          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void loadDashboardData()}
+            disabled={dataLoading}
+            className="gap-2 border-white/10 bg-white/[0.03] text-zinc-300 hover:border-indigo-400/30 hover:bg-white/[0.06] hover:text-white"
+          >
+            {dataLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            Refresh data
+          </Button>
         </div>
-      )}
 
-      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="flex items-center justify-between p-6">
-              <div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {stat.label}
-                </p>
-                <p className="mt-1 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-                  {stat.value}
-                </p>
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/[0.06] p-5 text-sm text-red-300"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium text-red-200">
+                Could not load all dashboard data
+              </p>
+              <p className="mt-1 leading-6">{error}</p>
+            </div>
+          </div>
+        )}
+
+        <section>
+          <div className="mb-4">
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-600">
+              Platform overview
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {statCards.map((stat) => (
+              <Card
+                key={stat.label}
+                className="group border-white/[0.08] bg-[#0d0e12] shadow-none transition-all duration-200 hover:border-indigo-400/20 hover:bg-[#101116]"
+              >
+                <CardContent className="flex items-center justify-between gap-4 p-5">
+                  <div className="min-w-0">
+                    <p className="text-sm text-zinc-500">{stat.label}</p>
+                    <p className="mt-2 truncate text-2xl font-semibold tracking-tight text-white">
+                      {stat.value}
+                    </p>
+                  </div>
+
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-indigo-400/15 bg-indigo-400/[0.07] text-indigo-300 transition-colors group-hover:border-indigo-400/25 group-hover:bg-indigo-400/[0.12]">
+                    {stat.icon}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <Card className="border-white/[0.08] bg-[#0d0e12] shadow-none">
+            <CardContent className="p-5 sm:p-6">
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold tracking-tight text-white">
+                    Recent activity
+                  </h2>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    Latest recorded platform events.
+                  </p>
+                </div>
+
+                <Link
+                  href="/profile/admin/history"
+                  className="rounded-full border border-white/[0.08] bg-white/[0.025] px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-indigo-400/30 hover:text-indigo-200"
+                >
+                  View audit log
+                </Link>
               </div>
-              <div className="text-zinc-500 dark:text-zinc-400">
-                {stat.icon}
-              </div>
+
+              {activity.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-white/[0.08] px-5 py-12 text-center">
+                  <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.04]">
+                    <RefreshCw className="h-4 w-4 text-zinc-500" />
+                  </div>
+                  <p className="text-sm text-zinc-400">
+                    No recent activity is available.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-white/[0.06]">
+                  {activity.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-indigo-400/80 ring-4 ring-indigo-400/[0.08]" />
+                        <span className="text-sm leading-6 text-zinc-300">
+                          {item.message}
+                        </span>
+                      </div>
+
+                      <span className="shrink-0 pl-5 text-xs text-zinc-500 sm:pl-0">
+                        {formatTime(item)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
-        ))}
+        </section>
       </div>
-
-      <Card>
-        <CardContent className="p-6">
-          <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            Recent activity
-          </h3>
-
-          {activity.length === 0 ? (
-            <p className="py-6 text-sm text-zinc-500">
-              No recent activity is available.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {activity.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex flex-col gap-1 border-b border-zinc-100 pb-3 text-sm last:border-0 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <span className="text-zinc-700 dark:text-zinc-300">
-                    {item.message}
-                  </span>
-                  <span className="shrink-0 text-zinc-400">
-                    {formatTime(item)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </AppShell>
+
   );
 }

@@ -112,14 +112,20 @@ OLLAMA_MODEL=REPLACE_WITH_A_MODEL_INSTALLED_IN_OLLAMA
 # ANTHROPIC_API_KEY=
 # ANTHROPIC_MODEL=
 
+# Ollama is primary when AI_PROVIDER=ollama. Groq is used only if Ollama is
+# unavailable; this must be a Groq API key, not an Anthropic/Claude API key.
+GROQ_API_KEY=REPLACE_WITH_A_GROQ_API_KEY
+GROQ_MODEL=openai/gpt-oss-120b
+# GROQ_MAX_TOKENS=8192
+
 # Configure this only when implementing application-level encryption.
 # Use the exact format and length required by the encryption implementation.
 APP_ENCRYPTION_KEY=REPLACE_WITH_A_SECURE_LOCAL_SECRET
 ```
 
-These variable names define the recommended configuration contract; they are not a claim that the current `lib/env.ts` already supports them.
-
-Inspect `lib/env.ts` and `package.json`, then implement and validate the configuration consistently.
+`GROQ_API_KEY` is optional when Ollama is the primary provider, but required to
+use its fallback. Keep it in the API server's environment or deployment
+secrets; never expose it through a `NEXT_PUBLIC_` variable or commit it.
 
 Add `api/.env.example` containing placeholder values only. Ensure `.env` is ignored by Git.
 
@@ -142,6 +148,39 @@ Use the actual scripts declared in `api/package.json` to start the API.
 Implement a readiness endpoint that verifies database connectivity with a bounded timeout. The liveness endpoint should report whether the application process is alive.
 
 ## 2. SQL schema
+
+## Publishing projects on `maatix.fi`
+
+Generated component-library sites are served directly from their validated
+document records by the API; generated code is not executed on the VPS. Set
+`PUBLIC_SITE_DOMAIN=maatix.fi` in the API environment. A project reserves an
+available hostname such as `portfolio.maatix.fi` at creation. If its preferred
+name is taken, the API assigns the next available suffix. After generation
+succeeds, the API publishes the project and records a successful platform
+deployment. Published editor changes update the live project document.
+
+For the VPS:
+
+1. Apply `api/sql/migrations/20261029_public_project_subdomains.sql` once to
+   the existing database. It assigns hostnames to active projects and publishes
+   existing validated generated documents.
+2. Point both the `maatix.fi` A record and wildcard `*.maatix.fi` A record at
+   the VPS public IPv4 address. Add corresponding AAAA records only if the VPS
+   is reachable over IPv6.
+3. Obtain a TLS certificate covering both `maatix.fi` and `*.maatix.fi`.
+   Wildcard certificates require DNS-01 validation with your DNS provider.
+4. Install and enable `deploy/nginx/maatix.fi.conf`. It routes the apex site to
+   Next.js on `127.0.0.1:3000` and project hostnames to the API on
+   `127.0.0.1:4000`.
+5. Ensure the Next.js app and API are supervised services listening on those
+   loopback ports; keep the API, database, and Next.js ports closed to public
+   ingress. Expose only ports 80 and 443 through the firewall.
+6. Run `nginx -t` and reload Nginx. Verify the apex, wildcard TLS certificate,
+   and a published project hostname from outside the VPS.
+
+The wildcard DNS and Nginx/TLS steps require access to the domain's DNS control
+panel and the VPS. The application cannot complete those infrastructure steps
+from the CMS itself.
 
 The initial schema is stored in:
 
@@ -443,6 +482,12 @@ Requirements:
 - Avoid unlimited automatic retries.
 - Treat all model output as untrusted.
 
+When `AI_PROVIDER=ollama`, a connection failure, timeout, missing Ollama model,
+rate limit, or server error triggers the configured Groq fallback. Configure
+`GROQ_API_KEY` and optionally `GROQ_MODEL` / `GROQ_MAX_TOKENS` in the API
+environment. Job records are updated to identify Groq when it handles a
+generation. The Claude/Anthropic API key is not valid for Groq.
+
 ### Production: Anthropic Claude
 
 Production can use Anthropic Claude through a server-side API key.
@@ -455,7 +500,7 @@ Requirements:
 - Handle timeouts, rate limits and quota exhaustion.
 - Normalize provider responses to internal application types.
 - Track usage and cost metadata where available.
-- Do not silently switch providers if the fallback could violate privacy, configuration or cost requirements.
+- Anthropic mode does not silently fail over to another provider.
 - Never expose provider credentials in logs, generated projects, exports or client bundles.
 
 Switching providers must not require rewriting the project-generation business logic.

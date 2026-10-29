@@ -56,6 +56,8 @@ export const config = {
   aiProvider: ((process.env.AI_PROVIDER ?? "ollama") as "ollama" | "anthropic"),
   ollamaBaseUrl: process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434",
   ollamaModel: process.env.OLLAMA_MODEL ?? "qwen3:14b",
+  groqApiKey: process.env.GROQ_API_KEY ?? "",
+  groqModel: process.env.GROQ_MODEL ?? "openai/gpt-oss-120b",
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-20250514",
 
@@ -64,4 +66,3 @@ export const config = {
 
   isProd: process.env.NODE_ENV === "production",
 };
-

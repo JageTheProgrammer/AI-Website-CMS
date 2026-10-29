@@ -5,11 +5,18 @@ export async function customerProxy(
   endpoint: string,
   method: "GET" | "PATCH" = "GET",
   body?: unknown,
+  cookieHeader?: string | null,
 ) {
   try {
     const result = await request(endpoint, {
       method,
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      ...(cookieHeader !== undefined
+        ? {
+            headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+            forwardCookies: false,
+          }
+        : {}),
     });
 
     return NextResponse.json(result);

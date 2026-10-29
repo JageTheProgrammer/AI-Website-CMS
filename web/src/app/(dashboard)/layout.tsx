@@ -8,8 +8,8 @@ export default async function DashboardLayout({
 }: {
   children: ReactNode;
 }) {
-  await verifyDashboardSession();
   await connection();
+  await verifyDashboardSession();
 
   return <>{children}</>;
 }

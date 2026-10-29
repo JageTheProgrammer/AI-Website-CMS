@@ -1,7 +1,12 @@
 import { customerProxy } from "@/lib/api/customer-proxy";
 
-export async function GET() {
-  return customerProxy("/api/customer/settings");
+export async function GET(request: Request) {
+  return customerProxy(
+    "/api/customer/settings",
+    "GET",
+    undefined,
+    request.headers.get("cookie"),
+  );
 }
 
 export async function PATCH(request: Request) {
@@ -16,5 +21,10 @@ export async function PATCH(request: Request) {
     );
   }
 
-  return customerProxy("/api/customer/settings", "PATCH", body);
+  return customerProxy(
+    "/api/customer/settings",
+    "PATCH",
+    body,
+    request.headers.get("cookie"),
+  );
 }

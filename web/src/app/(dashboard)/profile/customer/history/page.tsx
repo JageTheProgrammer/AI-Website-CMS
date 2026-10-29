@@ -14,7 +14,7 @@ const sidebarItems: NavItem[] = [
   { label: "Settings", href: "/profile/customer/settings" },
 ];
 
-type ActivityType = "generation" | "deployment" | "domain" | "project";
+type ActivityType = "generation" | "deployment" | "domain" | "project" | "account";
 
 interface ActivityLog {
   id: string | number;
@@ -22,6 +22,9 @@ interface ActivityLog {
   date?: string;
   createdAt?: string;
   type?: ActivityType;
+  resourceType?: string | null;
+  resourceId?: string | number | null;
+  projectSlug?: string | null;
 }
 
 interface ActivityResponse {
@@ -36,6 +39,7 @@ const TYPE_BADGE: Record<ActivityType, "default" | "success" | "secondary" | "wa
   deployment: "success",
   domain: "secondary",
   project: "warning",
+  account: "secondary",
 };
 
 function formatDate(value?: string) {
@@ -157,8 +161,14 @@ export default function CustomerHistoryPage() {
                     </div>
 
                     <p className="min-w-0 flex-1 break-words text-sm text-zinc-900 dark:text-zinc-50">
-                      {log.action}
+                      {log.action.replace(/[._]/g, " ")}
                     </p>
+
+                    {(log.projectSlug || (log.resourceType && log.resourceId)) && (
+                      <span className="break-all font-mono text-xs text-zinc-500">
+                        {log.projectSlug || `${log.resourceType}:${log.resourceId}`}
+                      </span>
+                    )}
 
                     <span className="shrink-0 text-xs text-zinc-400">
                       {formatDate(log.createdAt ?? log.date)}

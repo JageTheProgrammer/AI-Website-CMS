@@ -3,6 +3,7 @@
  */
 import { Router, Request, Response, NextFunction } from "express";
 import { getPool } from "../../lib/db";
+import { recordAuditLog } from "../../lib/audit-log";
 
 const router = Router();
 
@@ -42,6 +43,14 @@ router.post("/:projectId", async (req: Request, res: Response, next: NextFunctio
     if (!(project as Array<any>).length) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Project not found.", requestId: (req as any).requestId } });
 
     const result = await getPool().query("INSERT INTO domains (project_id, domain_name, status) VALUES (?, ?, 'pending')", [projectId, domainName.slice(0, 253)]);
+    await recordAuditLog({
+      actorUserId: userId,
+      projectId,
+      action: "domain.added",
+      resourceType: "domain",
+      resourceId: (result as any).insertId,
+      request: req,
+    });
     res.status(201).json({ data: { id: (result as any).insertId, domainName } });
   } catch (err) { next(err); }
 });
@@ -53,7 +62,16 @@ router.delete("/:projectId/:domainId", async (req: Request, res: Response, next:
     if (!userId) return res.status(401).json({ error: { code: "UNAUTHORIZED", message: "Not authenticated.", requestId: (req as any).requestId } });
 
     const domainId = Number(req.params.domainId);
-    await getPool().query("DELETE d FROM domains d JOIN projects p ON d.project_id = p.id WHERE d.id = ? AND p.owner_user_id = ?", [domainId, userId]);
+    const [result] = await getPool().query("DELETE d FROM domains d JOIN projects p ON d.project_id = p.id WHERE d.id = ? AND p.owner_user_id = ?", [domainId, userId]);
+    if (Number((result as any).affectedRows) > 0) {
+      await recordAuditLog({
+        actorUserId: userId,
+        action: "domain.removed",
+        resourceType: "domain",
+        resourceId: domainId,
+        request: req,
+      });
+    }
     res.json({ data: { deleted: true } });
   } catch (err) { next(err); }
 });

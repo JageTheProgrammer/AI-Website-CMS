@@ -20,6 +20,8 @@ interface AuditLog {
   createdAt: string;
   actor?: string | null;
   resource?: string | null;
+  resourceType?: string | null;
+  resourceId?: string | number | null;
 }
 
 interface ActivityResponse {
@@ -148,7 +150,9 @@ export default function AdminHistoryPage() {
                   </span>
 
                   <span className="break-all font-mono text-xs text-zinc-500">
-                    {log.resource || "—"}
+                    {log.resource || (log.resourceType && log.resourceId
+                      ? `${log.resourceType}:${log.resourceId}`
+                      : "—")}
                   </span>
 
                   <span className="shrink-0 text-xs text-zinc-400">

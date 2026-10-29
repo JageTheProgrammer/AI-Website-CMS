@@ -3,6 +3,12 @@
  */
 import { Router, Request, Response, NextFunction } from "express";
 import { getPool } from "../../lib/db";
+import { recordAuditLog } from "../../lib/audit-log";
+import {
+  getPublicSiteUrl,
+  isReservedSubdomain,
+  subdomainFromName,
+} from "../modules/sites/public-site-config";
 
 const router = Router();
 
@@ -21,6 +27,45 @@ function unauthorized(res: Response, req: Request) {
   });
 }
 
+// Check the suggested public hostname before project creation.
+router.get(
+  "/subdomain-availability",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return unauthorized(res, req);
+
+      const name = typeof req.query.name === "string" ? req.query.name.trim() : "";
+      if (!name || name.length > 160) {
+        return res.status(400).json({
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "A project name of 1 to 160 characters is required.",
+            requestId: (req as any).requestId || "",
+          },
+        });
+      }
+
+      const subdomain = subdomainFromName(name);
+      const [rows] = await getPool().query(
+        "SELECT id FROM projects WHERE platform_subdomain = ? LIMIT 1",
+        [subdomain],
+      );
+      const available = !isReservedSubdomain(subdomain) && (rows as unknown[]).length === 0;
+
+      return res.json({
+        data: {
+          subdomain,
+          available,
+          url: getPublicSiteUrl(subdomain),
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  },
+);
+
 // List projects owned by the current user.
 router.get("/", async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -36,24 +81,35 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
       [userId],
     );
 
-    return res.json({ data: rows });
+    return res.json({
+      data: (rows as Array<Record<string, unknown>>).map((project) => ({
+        ...project,
+        websiteUrl:
+          project.status === "published" &&
+          typeof project.platform_subdomain === "string"
+            ? getPublicSiteUrl(project.platform_subdomain)
+            : null,
+      })),
+    });
   } catch (error) {
     return next(error);
   }
 });
 
-// Get one project by numeric ID.
+// Get one project by ID or slug.
 router.get("/:id", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = getUserId(req);
     if (!userId) return unauthorized(res, req);
 
-    const projectId = Number(req.params.id);
-    if (!Number.isInteger(projectId) || projectId <= 0) {
+    const rawIdentifier = req.params.id;
+    const identifier = (Array.isArray(rawIdentifier) ? rawIdentifier[0] : rawIdentifier ?? "").trim();
+    const isNumericId = /^\d+$/.test(identifier);
+    if (!identifier || (isNumericId && (!Number.isSafeInteger(Number(identifier)) || Number(identifier) <= 0))) {
       return res.status(400).json({
         error: {
           code: "VALIDATION_ERROR",
-          message: "Invalid project ID.",
+          message: "Invalid project identifier.",
           requestId: (req as any).requestId || "",
         },
       });
@@ -62,11 +118,14 @@ router.get("/:id", async (req: Request, res: Response, next: NextFunction) => {
     const [rows] = await getPool().query(
       `SELECT id, name, slug, description, framework, status, visibility,
               owner_user_id, current_version_number, platform_subdomain,
+              (SELECT source_prompt FROM project_versions
+               WHERE project_id = projects.id AND version_number = 1
+               LIMIT 1) AS initial_prompt,
               created_at, updated_at
        FROM projects
-       WHERE id = ? AND owner_user_id = ? AND deleted_at IS NULL
+       WHERE ${isNumericId ? "id" : "slug"} = ? AND owner_user_id = ? AND deleted_at IS NULL
        LIMIT 1`,
-      [projectId, userId],
+      [isNumericId ? Number(identifier) : identifier, userId],
     );
 
     const project = (rows as any[])[0];
@@ -80,7 +139,18 @@ router.get("/:id", async (req: Request, res: Response, next: NextFunction) => {
       });
     }
 
-    return res.json({ data: project });
+    return res.json({
+      data: {
+        ...project,
+        websiteUrl: project.status === "published" && project.platform_subdomain
+          ? getPublicSiteUrl(String(project.platform_subdomain))
+          : null,
+        reservedUrl: project.platform_subdomain
+          ? getPublicSiteUrl(String(project.platform_subdomain))
+          : null,
+        initialPrompt: project.initial_prompt ?? null,
+      },
+    });
   } catch (error) {
     return next(error);
   }
@@ -90,6 +160,7 @@ router.get("/:id", async (req: Request, res: Response, next: NextFunction) => {
 router.post("/", async (req: Request, res: Response, next: NextFunction) => {
   const pool = getPool();
   let connection: Awaited<ReturnType<typeof pool.getConnection>> | undefined;
+  let projectCreationLock = false;
 
   try {
     const userId = getUserId(req);
@@ -127,28 +198,58 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
     const baseSlug =
       name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) ||
       `project-${Date.now()}`;
+    const baseSubdomain = subdomainFromName(name);
 
     connection = await pool.getConnection();
+    const [lockRows] = await connection.query(
+      "SELECT GET_LOCK('cms-project-hostnames', 10) AS acquired",
+    );
+    if (Number((lockRows as Array<{ acquired: number | null }>)[0]?.acquired) !== 1) {
+      return res.status(503).json({
+        error: {
+          code: "PROJECT_CREATION_BUSY",
+          message: "Project address allocation is busy. Please try again.",
+          requestId: (req as any).requestId || "",
+        },
+      });
+    }
+    projectCreationLock = true;
     await connection.beginTransaction();
 
     let slug = baseSlug;
     let suffix = 1;
     while (true) {
       const [existing] = await connection.query(
-        `SELECT id FROM projects
-         WHERE owner_user_id = ? AND slug = ?
-         LIMIT 1`,
-        [userId, slug],
+        "SELECT id FROM projects WHERE slug = ? LIMIT 1",
+        [slug],
       );
       if ((existing as any[]).length === 0) break;
       slug = `${baseSlug.slice(0, 90)}-${suffix++}`;
     }
 
+    let platformSubdomain = baseSubdomain;
+    suffix = 1;
+    while (true) {
+      if (isReservedSubdomain(platformSubdomain)) {
+        const suffixText = String(suffix++);
+        platformSubdomain = `${baseSubdomain.slice(0, 62 - suffixText.length)}-${suffixText}`;
+        continue;
+      }
+
+      const [existing] = await connection.query(
+        "SELECT id FROM projects WHERE platform_subdomain = ? LIMIT 1",
+        [platformSubdomain],
+      );
+      if ((existing as any[]).length === 0) break;
+      const suffixText = String(suffix++);
+      platformSubdomain = `${baseSubdomain.slice(0, 62 - suffixText.length)}-${suffixText}`;
+    }
+
     const [projectResult] = await connection.query(
       `INSERT INTO projects
-         (owner_user_id, name, slug, description, framework, status, visibility)
-       VALUES (?, ?, ?, ?, ?, 'draft', 'private')`,
-      [userId, name, slug, description || null, framework],
+         (owner_user_id, name, slug, description, framework, status, visibility, platform_subdomain, current_version_number)
+       VALUES (?, ?, ?, ?, ?, 'draft', 'private', ?, 1)`,
+      [userId, name, slug, description || null, framework, platformSubdomain],
     );
 
     const projectId = Number((projectResult as any).insertId);
@@ -162,16 +263,36 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
 
     await connection.commit();
 
+    await recordAuditLog({
+      actorUserId: userId,
+      projectId,
+      action: "project.created",
+      resourceType: "project",
+      resourceId: slug,
+      request: req,
+      metadata: { framework },
+    });
+
     return res.status(201).json({
       data: {
         id: projectId,
         projectId,
         name,
         slug,
+        platformSubdomain,
+        reservedUrl: getPublicSiteUrl(platformSubdomain),
         framework,
         status: "draft",
         current_version_number: 1,
-        project: { id: projectId, name, slug, framework, status: "draft" },
+        project: {
+          id: projectId,
+          name,
+          slug,
+          framework,
+          status: "draft",
+          platformSubdomain,
+          reservedUrl: getPublicSiteUrl(platformSubdomain),
+        },
       },
     });
   } catch (error) {
@@ -184,6 +305,13 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
     }
     return next(error);
   } finally {
+    if (projectCreationLock && connection) {
+      try {
+        await connection.query("SELECT RELEASE_LOCK('cms-project-hostnames')");
+      } catch (error) {
+        console.error("[Projects] Could not release hostname allocation lock:", error);
+      }
+    }
     connection?.release();
   }
 });
@@ -207,7 +335,8 @@ router.delete("/:id", async (req: Request, res: Response, next: NextFunction) =>
 
     const [result] = await getPool().query(
       `UPDATE projects
-       SET deleted_at = NOW(3)
+       SET deleted_at = NOW(3),
+           platform_subdomain = NULL
        WHERE id = ? AND owner_user_id = ? AND deleted_at IS NULL`,
       [projectId, userId],
     );
@@ -221,6 +350,15 @@ router.delete("/:id", async (req: Request, res: Response, next: NextFunction) =>
         },
       });
     }
+
+    await recordAuditLog({
+      actorUserId: userId,
+      projectId,
+      action: "project.deleted",
+      resourceType: "project",
+      resourceId: projectId,
+      request: req,
+    });
 
     return res.json({ data: { deleted: true, projectId } });
   } catch (error) {
@@ -293,7 +431,7 @@ router.get(
          WHERE p.slug = ?
            AND p.owner_user_id = ?
            AND p.deleted_at IS NULL
-           AND pv.status = 'ready'
+           AND pv.status IN ('ready', 'published')
          ORDER BY pv.version_number DESC, pv.id DESC
          LIMIT 1`,
         [slug, userId],

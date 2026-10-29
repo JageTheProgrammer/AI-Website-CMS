@@ -7,6 +7,17 @@ const BACKEND_URL = (
   "http://localhost:4000"
 ).replace(/\/+$/, "");
 
+function clearGithubToken(response: NextResponse) {
+  response.cookies.set("cms_github_access_token", "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/api/github",
+    maxAge: 0,
+  });
+  return response;
+}
+
 export async function POST(request: Request) {
   try {
     const headers = new Headers();
@@ -38,14 +49,14 @@ export async function POST(request: Request) {
       responseHeaders.append("set-cookie", setCookie);
     }
 
-    return new NextResponse(body, {
+    return clearGithubToken(new NextResponse(body, {
       status: backendResponse.status,
       headers: responseHeaders,
-    });
+    }));
   } catch (error) {
     console.error("[Logout API] Request failed:", error);
 
-    return NextResponse.json(
+    return clearGithubToken(NextResponse.json(
       {
         error: {
           code: "BACKEND_UNREACHABLE",
@@ -53,6 +64,6 @@ export async function POST(request: Request) {
         },
       },
       { status: 502 },
-    );
+    ));
   }
 }

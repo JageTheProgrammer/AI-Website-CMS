@@ -44,6 +44,7 @@ type Project = {
   updatedAt: string | null;
   version: number;
   subdomain: string | null;
+  websiteUrl: string | null;
 };
 
 const STATUS_BADGE: Record<
@@ -116,6 +117,8 @@ function normalizeProjects(response: unknown): Project[] {
             : typeof project.subdomain === "string"
               ? project.subdomain
               : null,
+      websiteUrl:
+        typeof project.websiteUrl === "string" ? project.websiteUrl : null,
     };
   });
 }
@@ -371,15 +374,13 @@ function ProjectCardGrid({ project }: { project: Project }) {
     STATUS_BADGE[project.status] ?? STATUS_BADGE.draft;
 
   return (
-    <Link
-      href={`/editor/${encodeURIComponent(project.slug)}`}
-      className="block h-full"
-    >
-      <Card className="h-full cursor-pointer transition-all hover:border-zinc-300 hover:shadow-sm dark:hover:border-zinc-700">
+      <Card className="h-full transition-all hover:border-zinc-300 hover:shadow-sm dark:hover:border-zinc-700">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2">
-            <CardTitle className="flex-1 truncate text-base">
+            <CardTitle className="flex-1 truncate text-base hover:text-indigo-500">
+              <Link href={`/editor/${encodeURIComponent(project.slug)}`}>
               {project.name}
+              </Link>
             </CardTitle>
             <Badge variant={badge.variant as never}>
               {badge.label}
@@ -398,10 +399,16 @@ function ProjectCardGrid({ project }: { project: Project }) {
               {project.version > 0 ? ` · v${project.version}` : ""}
             </span>
 
-            {project.subdomain && (
-              <span className="break-all text-emerald-600 dark:text-emerald-400">
-                {project.subdomain}
-              </span>
+            {project.websiteUrl && (
+              <a
+                href={project.websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => event.stopPropagation()}
+                className="break-all text-emerald-600 hover:underline dark:text-emerald-400"
+              >
+                Visit site
+              </a>
             )}
           </div>
 
@@ -410,7 +417,6 @@ function ProjectCardGrid({ project }: { project: Project }) {
           </p>
         </CardContent>
       </Card>
-    </Link>
   );
 }
 
@@ -419,22 +425,25 @@ function ProjectCardList({ project }: { project: Project }) {
     STATUS_BADGE[project.status] ?? STATUS_BADGE.draft;
 
   return (
-    <Link
-      href={`/editor/${encodeURIComponent(project.slug)}`}
-      className="block"
-    >
       <div className="flex flex-wrap items-center gap-4 rounded-lg border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-50">
+          <p className="truncate text-sm font-medium text-zinc-900 hover:text-indigo-500 dark:text-zinc-50">
+            <Link href={`/editor/${encodeURIComponent(project.slug)}`}>
             {project.name}
+            </Link>
           </p>
           <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
             {project.description || "No description provided."}
           </p>
-          {project.subdomain && (
-            <p className="mt-1 break-all text-xs text-emerald-600 dark:text-emerald-400">
-              {project.subdomain}
-            </p>
+          {project.websiteUrl && (
+            <a
+              href={project.websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-block break-all text-xs text-emerald-600 hover:underline dark:text-emerald-400"
+            >
+              Visit published site
+            </a>
           )}
         </div>
 
@@ -451,6 +460,5 @@ function ProjectCardList({ project }: { project: Project }) {
           {formatDate(project.updatedAt)}
         </span>
       </div>
-    </Link>
   );
 }

@@ -3,7 +3,6 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import HALO from "vanta/dist/vanta.halo.min";
 
 export default function VantaHalo() {
   const backgroundRef = useRef<HTMLDivElement>(null);
@@ -19,8 +18,7 @@ export default function VantaHalo() {
         // Vanta requires Three.js to be available globally.
         (window as any).THREE = THREE;
 
-        const VANTA = (await import("vanta/dist/vanta.halo.min"))
-          .default;
+        const VANTA = (await import("vanta/dist/vanta.halo.min")).default;
 
         if (cancelled || !backgroundRef.current) return;
 
@@ -52,9 +50,14 @@ export default function VantaHalo() {
 
   return (
     <div
-      ref={backgroundRef}
-      aria-hidden="true"
       className="absolute inset-0 -z-10 overflow-hidden"
-    />
+      aria-hidden="true"
+    >
+      {/* Vanta animation */}
+      <div ref={backgroundRef} className="absolute inset-0" />
+
+      {/* Smooth fade to black at the bottom */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-b from-transparent via-black/70 to-black" />
+    </div>
   );
 }

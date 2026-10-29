@@ -3,6 +3,7 @@
  */
 import { Router, Request, Response, NextFunction } from "express";
 import { getPool } from "../../lib/db";
+import { recordAuditLog } from "../../lib/audit-log";
 
 const router = Router();
 
@@ -50,6 +51,15 @@ router.post("/project/:projectId", async (req: Request, res: Response, next: Nex
     }
 
     const result = await getPool().query("INSERT INTO deployments (project_id, project_version_id, created_by_user_id, target, status) VALUES (?, ?, ?, ?, 'queued')", [projectId, ver, userId, target]);
+    await recordAuditLog({
+      actorUserId: userId,
+      projectId,
+      action: "deployment.created",
+      resourceType: "deployment",
+      resourceId: (result as any).insertId,
+      request: req,
+      metadata: { target },
+    });
     res.status(201).json({ data: { id: (result as any).insertId, status: "queued" } });
   } catch (err) { next(err); }
 });

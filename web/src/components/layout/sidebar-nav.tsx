@@ -1,15 +1,30 @@
+
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu, X, LayoutDashboard, LogOut, Settings, User, FileText, Plus, Globe, Database, Code, FolderGit2, CreditCard, HelpCircle, Shield, Users } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  User,
+  Globe,
+  Database,
+  Code,
+  FolderGit2,
+  CreditCard,
+  HelpCircle,
+  Shield,
+  Users,
+  Sparkles,
+  ChevronRight,
+  Loader2,
+} from "lucide-react";
+import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils/cn";
-
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-
 
 export interface NavItem {
   label: string;
@@ -22,14 +37,10 @@ interface SidebarNavProps {
   user: { name: string; email: string };
 }
 
-function NavIcon({ Icon, className }: { Icon?: React.ElementType; className?: string }) {
-  if (Icon) return <Icon className={cn("h-4 w-4 shrink-0", className)} />;
-  return <User className={cn("h-4 w-4 shrink-0", className)} />;
-}
-
 const SIDEBAR_ICONS: Record<string, React.ElementType> = {
   "/dashboard": LayoutDashboard,
   "/dashboard/customer": LayoutDashboard,
+  "/dashboard/admin": LayoutDashboard,
 
   "/projects": FolderGit2,
   "/editor": Code,
@@ -38,20 +49,65 @@ const SIDEBAR_ICONS: Record<string, React.ElementType> = {
 
   "/settings": Settings,
   "/profile/customer/settings": Settings,
+  "/profile/admin/settings": Settings,
 
   "/billing": CreditCard,
   "/support": HelpCircle,
   "/admin": Shield,
+  "/admin/users": Users,
+  "/admin/projects": FolderGit2,
   "/users": Users,
+  "/profile/admin/history": Database,
+  "/profile/admin": User,
+  "/profile/customer": User,
 };
 
+function NavIcon({
+  Icon,
+  className,
+}: {
+  Icon?: React.ElementType;
+  className?: string;
+}) {
+  const IconComponent = Icon ?? User;
+
+  return (
+    <IconComponent
+      aria-hidden="true"
+      className={cn("h-[17px] w-[17px] shrink-0", className)}
+    />
+  );
+}
+
+function isNavItemActive(pathname: string, href: string) {
+  if (pathname === href) return true;
+
+  // Match nested editor/project pages without activating unrelated links.
+  if (
+    href === "/editor" ||
+    href === "/projects" ||
+    href === "/domains" ||
+    href === "/deployments" ||
+    href === "/admin" ||
+    href === "/users"
+  ) {
+    return pathname.startsWith(`${href}/`);
+  }
+
+  return false;
+}
 
 export function SidebarNav({ items, user }: SidebarNavProps) {
   const pathname = usePathname();
-
   const router = useRouter();
+
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+  const profileHref = items.some((item) => item.href.startsWith("/profile/admin"))
+    ? "/profile/admin"
+    : items.some((item) => item.href.startsWith("/profile/customer"))
+      ? "/profile/customer"
+      : null;
 
   async function handleLogout() {
     if (loggingOut) return;
@@ -69,7 +125,8 @@ export function SidebarNav({ items, user }: SidebarNavProps) {
 
       if (!response.ok) {
         throw new Error(
-          result?.error?.message || "Failed to sign out. Please try again.",
+          result?.error?.message ||
+            "Failed to sign out. Please try again.",
         );
       }
 
@@ -85,65 +142,137 @@ export function SidebarNav({ items, user }: SidebarNavProps) {
       setLoggingOut(false);
     }
   }
-  return (
-    <aside className="flex h-screen w-64 flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-      <Link href={"/"}>
 
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="h-8 w-8 rounded-lg bg-zinc-900 flex items-center justify-center dark:bg-zinc-100">
-            <span className="text-sm font-bold text-white dark:text-zinc-900">AI</span>
-          </div>
-          <span className="font-semibold text-zinc-900 dark:text-zinc-50">CMS</span>
+  return (
+    <aside className="flex h-screen w-64 shrink-0 flex-col overflow-hidden border-r border-white/[0.07] bg-[#08090b] text-zinc-100">
+      {/* Brand */}
+      <Link
+        href="/"
+        aria-label="AI CMS home"
+        className="group flex h-[65px] shrink-0 items-center gap-3 border-b border-white/[0.07] px-5 transition-colors hover:bg-white/[0.02]"
+      >
+        <div className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-indigo-400/20 bg-gradient-to-br from-indigo-500/20 via-indigo-500/10 to-violet-500/10 shadow-[0_0_20px_rgba(99,102,241,0.08)]">
+          <Sparkles className="h-[18px] w-[18px] text-indigo-300 transition-transform duration-200 group-hover:scale-110" />
         </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="text-[15px] font-semibold tracking-tight text-white">
+            AI
+          </span>
+          <span className="text-[15px] font-medium tracking-tight text-zinc-400">
+            CMS
+          </span>
+        </div>
+
+        <ChevronRight className="ml-auto h-4 w-4 text-zinc-700 transition-all group-hover:translate-x-0.5 group-hover:text-zinc-400" />
       </Link>
 
+      {/* Navigation */}
+      <nav
+        aria-label="Main navigation"
+        className="flex-1 space-y-1 overflow-y-auto px-3 py-5"
+      >
+        <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">
+          Workspace
+        </p>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
         {items.map((item) => {
-          const isActive = pathname === item.href;
-          const IconComp = SIDEBAR_ICONS[item.href] ?? item.icon;
+          const isActive = isNavItemActive(pathname, item.href);
+          const IconComponent =
+            SIDEBAR_ICONS[item.href] ?? item.icon ?? User;
+
           return (
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-150",
                 isActive
-                  ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50"
-                  : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-50",
+                  ? "border border-indigo-400/15 bg-indigo-400/[0.09] text-indigo-200"
+                  : "border border-transparent text-zinc-500 hover:bg-white/[0.035] hover:text-zinc-200",
               )}
             >
-              {IconComp && <NavIcon Icon={IconComp} />}
-              {item.label}
+              {isActive && (
+                <span className="absolute bottom-2 left-0 top-2 w-[2px] rounded-r-full bg-indigo-400" />
+              )}
+
+              <NavIcon
+                Icon={IconComponent}
+                className={cn(
+                  "transition-colors",
+                  isActive
+                    ? "text-indigo-300"
+                    : "text-zinc-600 group-hover:text-zinc-300",
+                )}
+              />
+
+              <span className="min-w-0 flex-1 truncate">
+                {item.label}
+              </span>
+
+              {isActive && (
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.5)]" />
+              )}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-zinc-200 px-3 py-4 dark:border-zinc-800">
-        <div className="flex items-center gap-3 mb-3">
-          <Avatar src={null} alt={user.name} />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-zinc-900 truncate dark:text-zinc-50">{user.name}</p>
-            <p className="text-xs text-zinc-500 truncate">{user.email}</p>
-          </div>
-        </div>
+      {/* Account */}
+      <div className="shrink-0 border-t border-white/[0.07] p-3">
         {logoutError && (
-          <p role="alert" className="mb-2 px-2 text-xs text-red-600">
+          <div
+            role="alert"
+            className="mb-3 rounded-xl border border-red-500/20 bg-red-500/[0.06] px-3 py-2.5 text-xs leading-5 text-red-300"
+          >
             {logoutError}
-          </p>
+          </div>
         )}
 
+        <Link
+          href={profileHref ?? "#"}
+          aria-label="Open profile"
+          className="mb-2 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.025] p-3 transition-colors hover:bg-white/[0.05]"
+          onClick={(event) => {
+            if (!profileHref) event.preventDefault();
+          }}
+        >
+          <div className="relative shrink-0">
+            <Avatar src={null} alt={user.name} />
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0d0e12] bg-emerald-400" />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-medium text-zinc-200">
+              {user.name}
+            </p>
+            <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+              {user.email}
+            </p>
+          </div>
+        </Link>
+
         <Button
+          type="button"
           variant="ghost"
           size="sm"
-          className="w-full justify-start gap-2 text-zinc-600 hover:text-red-600 dark:text-zinc-400"
+          className="h-9 w-full justify-start gap-2.5 rounded-xl px-3 text-xs font-medium text-zinc-500 transition-colors hover:bg-red-500/[0.07] hover:text-red-300"
           onClick={handleLogout}
           disabled={loggingOut}
         >
-          <LogOut className="h-4 w-4" />
+          {loggingOut ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <LogOut className="h-4 w-4" />
+          )}
+
           {loggingOut ? "Signing out..." : "Sign out"}
         </Button>
+
+        <p className="px-3 pb-1 pt-3 text-[10px] text-zinc-700">
+          AI CMS · Website builder
+        </p>
       </div>
     </aside>
   );

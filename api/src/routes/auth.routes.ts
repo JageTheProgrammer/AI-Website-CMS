@@ -5,6 +5,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
 import { config } from "../../lib/env";
 import { getPool } from "../../lib/db";
+import { recordAuditLog } from "../../lib/audit-log";
 import rateLimit from "express-rate-limit";
 
 const router = Router();
@@ -53,6 +54,13 @@ router.post("/signup", authLimiter, async (req: Request, res: Response, next: Ne
     // Start session
     const userId = (result as any).insertId;
     (req as any).session.userId = userId;
+    await recordAuditLog({
+      actorUserId: userId,
+      action: "account.created",
+      resourceType: "user",
+      resourceId: userId,
+      request: req,
+    });
 
     res.status(201).json({ data: { userId, email: normalizedEmail, displayName: displayName.slice(0, 120) } });
   } catch (err) {
@@ -98,6 +106,13 @@ router.post("/login", authLimiter, async (req: Request, res: Response, next: Nex
 
     // Start session
     (req as any).session.userId = user.id;
+    await recordAuditLog({
+      actorUserId: user.id,
+      action: "account.signed_in",
+      resourceType: "user",
+      resourceId: user.id,
+      request: req,
+    });
 
     res.json({ data: { userId: user.id, email: user.email, displayName: user.display_name } });
   } catch (err) {
@@ -108,9 +123,17 @@ router.post("/login", authLimiter, async (req: Request, res: Response, next: Nex
 // --- Logout ---
 router.post("/logout", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!getUserId(req)) {
+    const userId = getUserId(req);
+    if (!userId) {
       return res.status(401).json({ error: { code: "UNAUTHORIZED", message: "Not authenticated.", requestId: (req as any).requestId } });
     }
+    await recordAuditLog({
+      actorUserId: userId,
+      action: "account.signed_out",
+      resourceType: "user",
+      resourceId: userId,
+      request: req,
+    });
     (req as any).session.destroy(function () {
       res.json({ data: { loggedOut: true } });
     });
@@ -169,6 +192,17 @@ router.patch("/profile", async (req: Request, res: Response, next: NextFunction)
 
     values.push(userId);
     await getPool().query(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, values);
+    await recordAuditLog({
+      actorUserId: userId,
+      action: "profile.updated",
+      resourceType: "user",
+      resourceId: userId,
+      request: req,
+      metadata: {
+        displayNameChanged: Boolean(displayName),
+        emailChanged: Boolean(newEmail),
+      },
+    });
 
     res.json({ data: { updated: true } });
   } catch (err) { next(err); }

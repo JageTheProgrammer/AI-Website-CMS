@@ -142,6 +142,31 @@ Do not remove an existing page simply because it is not listed above.
 Map all current routes and decide deliberately whether each is retained,
 consolidated or redirected.
 
+Image uploads from the visual editor are embedded in the versioned project
+document, so they persist with the site and are included in static/GitHub
+exports. Individual source images are limited to 1 MB; the API accepts up
+to 12 MB per JSON request to support projects with several uploaded images.
+
+## GitHub export
+
+The editor's Review tab can validate the exported static pages and push
+them to a repository owned by the connected GitHub account. Configure a
+GitHub OAuth App with the callback URL
+`http://localhost:3000/api/github/callback` for local development (use the
+deployed app URL in production), then set these server-only variables for
+the Next.js app:
+
+- `GITHUB_CLIENT_ID`
+- `GITHUB_CLIENT_SECRET`
+- `GITHUB_OAUTH_REDIRECT_URI` (optional locally; set it explicitly in
+  production to the registered callback URL)
+
+The OAuth flow requests GitHub's `repo` scope so private repositories can
+be selected; this is a broad permission granted by GitHub OAuth Apps. The
+access token is stored in an HTTP-only cookie and is not returned to browser
+JavaScript or saved in the CMS database. Export creates one commit containing
+the generated HTML pages and `robots.txt` on the repository's default branch.
+
 ## API integration
 
 -   Use one typed API client rather than scattering raw `fetch()` calls.

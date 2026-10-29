@@ -1,6 +1,7 @@
 
 import { Router, Request, Response, NextFunction } from "express";
 import { getPool } from "../../lib/db";
+import { recordAuditLog } from "../../lib/audit-log";
 
 const router = Router();
 
@@ -242,6 +243,15 @@ router.patch(
         }
       }
 
+      await recordAuditLog({
+        actorUserId: userId,
+        action: "profile.updated",
+        resourceType: "user",
+        resourceId: userId,
+        request: req,
+        metadata: { field: "display_name" },
+      });
+
       res.json({
         data: {
           displayName: displayName.trim(),
@@ -256,20 +266,41 @@ router.patch(
 /**
  * GET /api/customer/activity
  *
- * The audit_logs schema must identify which user performed each action.
- * Your current schema has already been shown not to contain user_id or
- * message, so this endpoint must be adapted once the actor column is known.
+ * Returns only activity performed by the authenticated customer.
  */
 router.get(
   "/activity",
-  async (_req: Request, res: Response) => {
-    res.status(501).json({
-      error: {
-        code: "ACTIVITY_SCHEMA_UNCONFIRMED",
-        message:
-          "Customer activity requires the audit_logs schema to identify the authenticated user.",
-      },
-    });
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getUserId(req)!;
+      const [rows] = await getPool().query(
+        `SELECT
+           a.id,
+           a.action,
+           a.created_at AS createdAt,
+           a.project_id AS projectId,
+           a.resource_type AS resourceType,
+           a.resource_id AS resourceId,
+           a.metadata,
+           p.slug AS projectSlug,
+           CASE
+             WHEN a.action LIKE 'generation.%' THEN 'generation'
+             WHEN a.action LIKE 'deployment.%' THEN 'deployment'
+             WHEN a.action LIKE 'domain.%' THEN 'domain'
+             WHEN a.action LIKE 'account.%' OR a.action LIKE 'profile.%' THEN 'account'
+             ELSE 'project'
+           END AS type
+         FROM audit_logs a
+         LEFT JOIN projects p ON p.id = a.project_id
+         WHERE a.actor_user_id = ?
+         ORDER BY a.created_at DESC
+         LIMIT 100`,
+        [userId],
+      );
+      res.json({ data: rows });
+    } catch (error) {
+      next(error);
+    }
   },
 );
 
