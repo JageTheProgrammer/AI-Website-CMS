@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Shared component library: component registry, page-document schema/validation, AI catalog, Tailwind HTML renderer and editor bridge.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "files": ["src"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
