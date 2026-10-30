@@ -6,7 +6,7 @@
  * HTML is also kept in `project_versions.summary`, so the existing preview route and the
  * current editor page keep working unchanged while the new editor reads `site.json`.
  */
-import crypto from "crypto";
+import crypto from "node:crypto";
 import type { PoolConnection } from "mysql2/promise";
 import { getPool } from "../../../lib/db";
 import { renderPage, validateDocument, type Issue, type PageDocument } from "@cms/component-library";

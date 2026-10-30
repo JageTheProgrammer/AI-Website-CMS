@@ -1,0 +1,39 @@
+appId: com.yourname.cmsdesktop
+productName: CMS Desktop
+
+directories:
+  output: release
+
+# Only the compiled Electron shell goes inside the asar archive.
+files:
+  - dist/**/*
+  - package.json
+
+# The built web + api servers are copied as real files (outside the asar),
+# because they are started as separate Node processes.
+extraResources:
+  - from: app
+    to: app
+    filter:
+      - "**/*"
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  category: Development
+  target:
+    - AppImage
+    - deb

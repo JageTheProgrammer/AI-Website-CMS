@@ -1,0 +1,26 @@
+{
+  "name": "cms-desktop",
+  "version": "0.1.0",
+  "description": "Desktop version of the CMS website builder",
+  "main": "dist/main.js",
+  "author": {
+    "name": "Jaakko Maatiala",
+    "email": "maatialaj6@gmail.com"
+  },
+  "homepage": "https://example.com",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "prepare:app": "node scripts/prepare.mjs",
+    "build": "tsc",
+    "dev": "npm run prepare:app && npm run build && electron .",
+    "start": "npm run build && electron .",
+    "dist": "npm run prepare:app && npm run build && electron-builder --publish never"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "electron": "^45.1.0",
+    "electron-builder": "^26.18.0",
+    "typescript": "^5.6.0"
+  }
+}

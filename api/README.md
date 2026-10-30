@@ -10,24 +10,50 @@ It must never run arbitrary customer-generated code inside the main API process.
 
 Production database credentials and hostnames must be supplied through deployment environment variables. Never hard-code them.
 
-## Current scaffold
+## Current folder structure
 
-The existing repository includes:
+The tree below reflects the current API source and configuration:
 
 ```text
 api/
-├── lib/
-│   └── env.ts
+├── lib/                              # Shared infrastructure and helpers
+│   ├── audit-log.ts                  # Audit event recording
+│   ├── db.ts                         # MySQL/SQLite database selection
+│   ├── env.ts                        # Environment configuration and validation
+│   ├── logger.ts                     # Application logging
+│   └── sqlite-pool.ts                # SQLite adapter for the MySQL pool interface
+├── sql/
+│   ├── migrations/                   # Numbered/versioned schema changes
+│   ├── schema.sql                    # MySQL initial schema
+│   └── schema.sqlite.sql             # SQLite initial schema
 ├── src/
-│   └── index.ts
+│   ├── middleware/
+│   │   ├── authenticate.ts
+│   │   ├── authorize.ts
+│   │   ├── csrf.ts
+│   │   ├── error-handler.ts
+│   │   ├── request-id.ts
+│   │   └── validate.ts
+│   ├── modules/
+│   │   ├── ai/providers/             # Provider interfaces and adapters
+│   │   ├── documents/                # Document persistence
+│   │   └── sites/                    # Public site configuration
+│   ├── routes/                       # Express route modules
+│   ├── app.ts                        # Express application and middleware wiring
+│   └── index.ts                      # Server bootstrap
+├── AGENTS.md                         # Backend-specific contributor instructions
 ├── package.json
 ├── package-lock.json
-├── tsconfig.json
 ├── README.md
-└── AGENTS.md
+└── tsconfig.json
 ```
 
-Inspect the actual source files and manifests before changing them. Keep `src/index.ts` as the bootstrap and composition root; move domain logic into modules rather than expanding it into one giant file.
+`desktop/app/api/` is generated when packaging the Electron app; it is not
+the maintained API source. The desktop/local configuration can select the
+SQLite adapter, while MySQL remains the default driver. Inspect the source
+and package manifest before changing routes, modules, or dependencies.
+Keep `src/index.ts` as the bootstrap and composition root; move domain
+logic into modules rather than expanding it into one giant file.
 
 ## 1. Local MySQL setup
 
@@ -95,6 +121,8 @@ Create `api/.env` locally, using the following as a template. Never commit this 
 NODE_ENV=development
 PORT=4000
 HOST=127.0.0.1
+SESSION_SECRET=REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS
+CORS_ORIGIN=http://localhost:3000
 
 DB_HOST=127.0.0.1
 DB_PORT=3306
@@ -122,6 +150,15 @@ GROQ_MODEL=openai/gpt-oss-120b
 # Use the exact format and length required by the encryption implementation.
 APP_ENCRYPTION_KEY=REPLACE_WITH_A_SECURE_LOCAL_SECRET
 ```
+
+`SESSION_SECRET` must contain at least 32 non-whitespace characters. Set
+`CORS_ORIGIN` to the exact comma-separated frontend origins; wildcard
+origins and `null` are rejected. General JSON requests are limited to
+1 MB, while document routes allow up to 12 MB for embedded project images.
+The API also applies global, authentication, generation, and admin rate
+limits. Unsafe browser requests are checked against the configured
+origins; server-to-server requests without browser origin headers remain
+supported.
 
 `GROQ_API_KEY` is optional when Ollama is the primary provider, but required to
 use its fallback. Keep it in the API server's environment or deployment

@@ -1,6 +1,9 @@
 {
+  "$schema": "https://json.schemastore.org/package.json",
   "name": "@cms/component-library",
   "version": "0.1.0",
+  "author": "Jaakko Maatiala",
+  "license": "MIT",
   "private": true,
   "description": "Shared component library: component registry, page-document schema/validation, AI catalog, Tailwind HTML renderer and editor bridge.",
   "main": "src/index.js",

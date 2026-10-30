@@ -4,9 +4,16 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { getPool } from "../../lib/db";
 import { requireRole } from "../middleware/authorize";
+import rateLimit from "express-rate-limit";
 
 const router = Router();
 
+router.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+}));
 router.use(requireRole("admin"));
 
 // Platform stats

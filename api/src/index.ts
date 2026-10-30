@@ -20,8 +20,11 @@ async function start() {
   try {
     const pool = getPool();
     const conn = await pool.getConnection();
-    logger.info(`Database connected — ${config.db.host}:${config.db.port}/${config.db.database}`);
-    conn.release();
+    logger.info(
+      config.db.driver === "sqlite"
+        ? `Database connected — SQLite ${config.db.sqlitePath}`
+        : `Database connected — ${config.db.host}:${config.db.port}/${config.db.database}`
+    ); conn.release();
   } catch (err: any) {
     logger.error(`Database connection failed: ${err.message}`);
     process.exit(1);
@@ -30,6 +33,7 @@ async function start() {
   server = app.listen(PORT, HOST, () => {
     logger.info(`API listening on http://${HOST}:${PORT}`);
   });
+
 
   server.on("error", (err: NodeJS.ErrnoException) => {
     if (err.code === "EADDRINUSE") {

@@ -7,7 +7,7 @@
 -- This is an initial schema, not a migration system.
 -- Never store real secrets in this file.
 
-CREATE DATABASE IF NOT EXISTS ai_cms
+CREATE DATABASE ai_cms
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 

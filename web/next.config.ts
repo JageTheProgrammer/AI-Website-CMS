@@ -3,6 +3,9 @@ import path from "node:path";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  output: "standalone",
+  outputFileTracingRoot: path.resolve(process.cwd(), ".."),
+
   transpilePackages: ["@cms/component-library"],
   experimental: {
     agentFeedback: true,

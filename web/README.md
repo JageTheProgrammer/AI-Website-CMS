@@ -7,72 +7,103 @@ website. It owns the visual experience and calls the Express API through
 a typed client. It should not own trusted business logic or connect
 directly to production databases.
 
-## Current structure
+## Current folder structure
 
-The repository currently uses the Next.js App Router and has these route
-groups and pages:
+The tree below reflects the current `web/src` source. Route groups in
+parentheses organize layouts but do not appear in the URL. Dynamic
+segments such as `[projectId]` and `[slug]` are shown literally.
 
--   `(auth)`: `/login`, `/signup`
--   `(base)`: `/`, `/about`, `/contact`, `/cookies`, `/dashboard/admin`,
-    `/dashboard/customer`, `/faq`, `/legal`, `/pricing`, `/privacy`,
-    `/profile/admin/*`, `/profile/customer/*`
--   `app/api/*`: existing Next.js route handlers for auth, generation,
-    pricing, profile, Stripe and support
--   `components/navigation/*`: admin/customer dashboard navigation and
-    universal navbar/footer
--   `components/shared/*`: button, input and loading components
-
-Important: route groups do not appear in URLs. Preserve route behavior
-while auditing. There are apparent naming inconsistencies such as
-`payements` and `sucess`; verify usage before renaming and provide
-redirects/compatibility if necessary.
-
-## Recommended frontend organization
-
-Adapt this to existing files rather than replacing everything
-mechanically:
-
-``` text
-src/
-├── app/
-│   ├── (marketing)/
-│   ├── (auth)/
-│   ├── (dashboard)/
+```text
+web/
+├── public/                            # Static assets
+├── src/
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   ├── login/page.tsx         # /login
+│   │   │   ├── signup/page.tsx        # /signup
+│   │   │   └── layout.tsx
+│   │   ├── (base)/
+│   │   │   ├── page.tsx              # /
+│   │   │   ├── about/page.tsx        # /about
+│   │   │   ├── contact/page.tsx      # /contact
+│   │   │   ├── cookies/page.tsx      # /cookies
+│   │   │   ├── faq/page.tsx          # /faq
+│   │   │   ├── features/page.tsx     # /features
+│   │   │   ├── pricing/page.tsx      # /pricing
+│   │   │   ├── privacy/page.tsx      # /privacy
+│   │   │   └── terms/page.tsx        # /terms
+│   │   ├── (dashboard)/
+│   │   │   ├── actions.ts
+│   │   │   ├── admin/users/page.tsx  # /admin/users
+│   │   │   ├── billing/page.tsx      # /billing
+│   │   │   ├── dashboard/
+│   │   │   │   ├── page.tsx          # /dashboard
+│   │   │   │   ├── admin/page.tsx    # /dashboard/admin
+│   │   │   │   └── customer/page.tsx # /dashboard/customer
+│   │   │   ├── deployments/page.tsx  # /deployments
+│   │   │   ├── domains/page.tsx      # /domains
+│   │   │   ├── editor/[projectId]/page.tsx
+│   │   │   ├── layout.tsx
+│   │   │   ├── profile/
+│   │   │   │   ├── admin/            # Profile, history, payments, settings
+│   │   │   │   └── customer/         # Profile, history, payments, settings
+│   │   │   └── projects/
+│   │   │       ├── page.tsx          # /projects
+│   │   │       └── new/page.tsx      # /projects/new
+│   │   ├── api/                      # Next.js API route handlers (BFF)
+│   │   │   ├── admin/                # Activity, stats, users
+│   │   │   ├── auth/                 # Login, logout, session, signup, verification
+│   │   │   ├── billing/              # Billing
+│   │   │   ├── customer/             # Activity, deployments, domains, projects, settings
+│   │   │   ├── deployments/          # Deployment operations
+│   │   │   ├── documents/            # Documents, export, restore, components
+│   │   │   ├── domains/              # Domain operations
+│   │   │   ├── generate/             # Generation
+│   │   │   ├── github/               # OAuth, repositories, export
+│   │   │   ├── pricing/              # Pricing
+│   │   │   ├── profile/              # Profile, update, upload, removal
+│   │   │   ├── projects/             # Projects, preview, versions, subdomains
+│   │   │   ├── stripe/               # Payments, cancellation, webhook
+│   │   │   └── support/              # Support
+│   │   ├── error.tsx
+│   │   ├── favicon.ico
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   ├── loading.tsx
+│   │   └── not-found.tsx
+│   ├── components/
 │   │   ├── dashboard/
+│   │   ├── editor/
+│   │   ├── feedback/
+│   │   ├── forms/
+│   │   ├── layout/
+│   │   ├── marketing/
+│   │   ├── navigation/
+│   │   │   └── universal/
+│   │   ├── profile/
 │   │   ├── projects/
-│   │   ├── editor/[projectId]/
-│   │   ├── domains/
-│   │   ├── deployments/
-│   │   ├── settings/
-│   │   └── billing/
-│   ├── api/                 # Keep only intentional BFF/Next handlers
-│   ├── error.tsx
-│   ├── loading.tsx
-│   ├── not-found.tsx
-│   ├── layout.tsx
-│   └── globals.css
-├── components/
-│   ├── ui/                  # Reusable accessible primitives
-│   ├── layout/              # App shell, sidebar, header, page container
-│   ├── marketing/
-│   ├── dashboard/
-│   ├── projects/
-│   ├── editor/
-│   ├── forms/
-│   └── feedback/             # Toasts, errors, skeletons, empty states
-├── features/                 # Feature-level UI/hooks where useful
-├── lib/
-│   ├── api/                  # Typed Express API client and endpoint functions
-│   ├── auth/
-│   ├── validation/
-│   └── utils/
-├── types/
-└── styles/
+│   │   ├── shared/
+│   │   │   └── universal/
+│   │   └── ui/
+│   ├── lib/
+│   │   ├── api/                      # API client, proxies and mock adapter
+│   │   ├── github.ts                 # GitHub integration helpers
+│   │   └── utils/                     # Shared utilities
+│   └── types/
+├── AGENTS.md
+├── eslint.config.mjs
+├── next.config.ts
+├── package.json
+├── package-lock.json
+└── tsconfig.json
 ```
 
-Do not create empty folders just to match this tree. Use a clear,
-consistent convention and keep components colocated when that improves
-maintainability.
+The `api/` directory contains Next.js route handlers and is distinct from
+the repository-level Express service in `../api/`. Keep these handlers
+working unless a specific route is deliberately migrated. Some component
+directories are currently empty; add files where they fit existing
+conventions rather than treating every directory as implemented
+functionality. Update this tree when routes or source folders change.
 
 ## UI-first implementation rules
 
@@ -145,7 +176,8 @@ consolidated or redirected.
 Image uploads from the visual editor are embedded in the versioned project
 document, so they persist with the site and are included in static/GitHub
 exports. Individual source images are limited to 1 MB; the API accepts up
-to 12 MB per JSON request to support projects with several uploaded images.
+to 12 MB on document routes to support projects with several uploaded images.
+Other API JSON requests use a 1 MB limit.
 
 ## GitHub export
 

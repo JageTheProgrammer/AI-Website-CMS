@@ -23,27 +23,37 @@ import supportRoutes from "./routes/support.routes";
 import customerRoutes from "./routes/customer.routes";
 import { servePublicSite } from "./routes/public-sites.routes";
 import session from "express-session";
+import { csrfProtection } from "./middleware/csrf";
 
 
 const app = express();
 
 // Security headers & CORS
 app.use(helmet({ contentSecurityPolicy: false }));
+app.use("/api", helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'none'"],
+    },
+  },
+}));
 app.use(cors({ origin: config.corsOrigin, credentials: true }));
 // Editable documents embed optimized local image assets; allow several uploads per project.
-app.use(express.json({ limit: "12mb" }));
+app.use("/api/documents", express.json({ limit: "12mb" }));
+app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
+
 
 // Session middleware — must be before authentication routes
 app.use(
   session({
     name: "maatix.sid",
-    secret: process.env.SESSION_SECRET!,
+    secret: config.sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: config.isProd && !config.localMode,
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
@@ -51,11 +61,18 @@ app.use(
 );
 
 app.use(requestIds);
+app.use(csrfProtection);
 
 // Global rate limiter
 app.use(rateLimit({
   windowMs: config.rateLimitWindowMs,
   max: config.rateLimitMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+}));
+app.use("/api/generation", rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
 }));
