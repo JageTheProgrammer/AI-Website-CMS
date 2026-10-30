@@ -49,7 +49,7 @@ export class OllamaProvider implements AIProvider {
   constructor(
     private baseUrl: string,
     private model: string,
-  ) {}
+  ) { }
 
   async generate(input: GenerateInput): Promise<GenerateResult> {
     const messages = [
@@ -69,7 +69,10 @@ export class OllamaProvider implements AIProvider {
         `${this.baseUrl.replace(/\/+$/, "")}/api/chat`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "ngrok-skip-browser-warning": "true",
+          },
           body: JSON.stringify({
             model: this.model,
             messages,
@@ -217,14 +220,14 @@ export class AnthropicProvider implements AIProvider {
   constructor(
     private apiKey: string,
     private model: string,
-  ) {}
+  ) { }
 
   async generate(input: GenerateInput): Promise<GenerateResult> {
     const messages = input.history
       ? [
-          ...input.history,
-          { role: "user" as const, content: input.prompt },
-        ]
+        ...input.history,
+        { role: "user" as const, content: input.prompt },
+      ]
       : [{ role: "user" as const, content: input.prompt }];
 
     const maxTokens = getPositiveInteger(

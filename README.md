@@ -1,13 +1,18 @@
-# AI Website CMS --- Project Guide
+# AI Website CMS
 
-> Working name: **AI Website CMS**. Replace this name once the product
-> brand is chosen.
+**An open-source, AI-powered website builder for creating, editing, previewing, and publishing websites from natural-language prompts.**
 
-A prompt-driven website builder and hosting platform inspired by tools
-such as Lovable and Base44. Customers describe a business or website in
-natural language, generate and edit a real project, connect data
-features, preview it, publish it to a platform subdomain or custom
-domain, and export the project to run locally.
+AI Website CMS combines a Next.js web app, an Express API, a shared
+component library, and an Electron desktop app. Its goal is to help
+people turn an idea into an editable website, refine it with AI, and
+export the resulting source code. MySQL is the default API database;
+desktop/local mode can use SQLite, and AI providers are configured on
+the server.
+
+The project is under active development. Some planned capabilities,
+such as production hosting, custom-domain workflows, and data
+integrations, may not yet be fully implemented. See the app READMEs for
+current setup details and the [MIT license](./LICENSE).
 
 ## Product principles
 
