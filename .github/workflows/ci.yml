@@ -1,0 +1,67 @@
+
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-checks:
+    name: Build and quality checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            packages/component-library/package-lock.json
+            api/package-lock.json
+            web/package-lock.json
+            desktop/package-lock.json
+
+      - name: Install component library dependencies
+        run: npm ci --prefix packages/component-library
+
+      - name: Test component library
+        run: npm test --prefix packages/component-library
+
+      - name: Install API dependencies
+        run: npm ci --prefix api
+
+      - name: Build API
+        run: npm run build --prefix api
+
+      - name: Install web dependencies
+        run: npm ci --prefix web
+
+      - name: Lint web application
+        run: npm run lint --prefix web
+
+      - name: Build web application
+        run: npm run build --prefix web
+
+      - name: Install desktop dependencies
+        run: npm ci --prefix desktop
+
+      - name: Build desktop application
+        run: npm run build --prefix desktop
