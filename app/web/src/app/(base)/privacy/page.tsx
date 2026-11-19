@@ -2,6 +2,9 @@ import Link from "next/link";
 import { ArrowRight, LockKeyhole } from "lucide-react";
 import { Footer } from "@/components/navigation/universal/footer";
 import { Navbar } from "@/components/navigation/universal/navbar";
+import { pageMetadata, publicPages } from "@/lib/seo";
+
+export const metadata = pageMetadata(publicPages.privacy);
 
 const sections = [
   {

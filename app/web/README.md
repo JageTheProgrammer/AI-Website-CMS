@@ -199,6 +199,18 @@ access token is stored in an HTTP-only cookie and is not returned to browser
 JavaScript or saved in the CMS database. Export creates one commit containing
 the generated HTML pages and `robots.txt` on the repository's default branch.
 
+## Search engine metadata
+
+The public marketing pages have individual titles, descriptions, canonical
+URLs and social sharing metadata. Their sitemap is generated from
+`src/lib/seo.ts`; add new public pages there and use `pageMetadata` on the
+corresponding page. Authentication and dashboard pages are marked noindex.
+
+Canonical URLs, social image URLs, and the sitemap default to
+`https://cms.polityra.org`. Set `NEXT_PUBLIC_SITE_URL` to the canonical
+public origin when deploying the site at a different domain. Use the same
+origin in every environment that should refer to that canonical site.
+
 ## API integration
 
 -   Use one typed API client rather than scattering raw `fetch()` calls.

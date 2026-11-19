@@ -3,6 +3,9 @@ import { ArrowRight, Code2, Heart, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/navigation/universal/footer";
 import { Navbar } from "@/components/navigation/universal/navbar";
+import { pageMetadata, publicPages } from "@/lib/seo";
+
+export const metadata = pageMetadata(publicPages.about);
 
 const principles = [
   {

@@ -41,6 +41,7 @@ export function NavbarClient({ authenticated }: { authenticated: boolean }) {
             width={1040}
             height={312}
             priority
+            unoptimized
             className="h-8 w-auto"
           />
         </Link>

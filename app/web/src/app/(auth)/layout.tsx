@@ -1,6 +1,11 @@
 
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { request } from "@/lib/api/proxy";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 interface AuthUser {
   userId: number;

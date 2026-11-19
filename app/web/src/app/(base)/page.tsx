@@ -24,6 +24,22 @@ import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/navigation/universal/footer";
 import { Navbar } from "@/components/navigation/universal/navbar";
 import VantaHalo from "@/components/ui/VantaHalo";
+import { pageMetadata, publicPages, siteUrl } from "@/lib/seo";
+
+export const metadata = pageMetadata(publicPages.home);
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Polityra CMS",
+  url: siteUrl.toString(),
+  description: publicPages.home.description,
+  publisher: {
+    "@type": "Organization",
+    name: "Polityra",
+    url: "https://github.com/Polityra",
+  },
+};
 
 const sectionLabel =
   "text-xs font-medium uppercase tracking-[0.16em] text-indigo-200";
@@ -43,6 +59,12 @@ const iconBoxStyle =
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col overflow-hidden bg-[#08090b] text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+        }}
+      />
       <Navbar />
 
       <main className="flex-1">

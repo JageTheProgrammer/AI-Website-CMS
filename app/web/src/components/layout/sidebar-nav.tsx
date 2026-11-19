@@ -201,6 +201,7 @@ export function SidebarNav({
           width={1040}
           height={312}
           priority
+          unoptimized
           className="h-7 w-auto"
         />
         <ChevronRight className="ml-auto h-4 w-4 text-zinc-600 transition-colors group-hover:text-zinc-300" />
