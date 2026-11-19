@@ -1,42 +1,79 @@
-# AI Website CMS
+<div align="center">
 
-**An open-source, AI-powered website builder for creating, editing, previewing, and publishing websites from natural-language prompts.**
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./images/polityra-cms-logo-dark.png">
+  <img src="./images/polityra-cms-logo-light.png" alt="Polityra CMS" width="420">
+</picture>
 
-AI Website CMS combines a Next.js web app, an Express API, a shared
-component library, and an Electron desktop app. Its goal is to help
-people turn an idea into an editable website, refine it with AI, and
-export the resulting source code. MySQL is the default API database;
-desktop/local mode can use SQLite, and AI providers are configured on
-the server.
+<br />
 
-The project is under active development. Some planned capabilities,
-such as production hosting, custom-domain workflows, and data
-integrations, may not yet be fully implemented. See the app READMEs for
-current setup details and the [MIT license](./LICENSE).
+**An open-source, AI-powered website builder: describe an idea, get an editable website, refine it with AI, and export the source code.**
+
+[Open Polityra](https://github.com/Polityra) · [Report an issue](../../issues) · [License](./LICENSE)
+
+</div>
+
+<p align="center">
+  <img src="./images/polityra-cms-banner.png" alt="Polityra CMS: Open content. Full control. Better websites." width="100%">
+</p>
+
+---
+
+## About
+
+**Polityra CMS** turns natural-language prompts into real, editable websites. You describe what you need, the AI helps create a complete website project, and you keep refining it through live preview, follow-up prompts and direct editing. The result is a project you own: the source code can be exported and kept running outside the platform.
+
+Polityra CMS combines a Next.js web app, an Express API, a shared component library and an Electron desktop app. MySQL is the default API database; desktop and local mode can use SQLite. AI providers are configured on the server, so no model or provider is hard-coded into the application.
+
+> **Status:** under active development. Some planned capabilities, such as production hosting, custom-domain workflows and data integrations, may not be fully implemented yet. See the READMEs in each app for current setup details.
+
+## Part of Polityra
+
+Polityra CMS is owned and maintained by the **[Polityra](https://github.com/Polityra) organization**, the same organization that owns **Open Polityra**, our open-source AI platform for data-driven geopolitical and strategic analysis.
+
+| Project | What it is |
+| --- | --- |
+| **Open Polityra** | Open-source platform for strategic analysis, forecasting and research across economics, geopolitics, security and resilience. |
+| **Polityra CMS** (this repository) | Open-source AI website builder and CMS for creating, editing, previewing and publishing websites. |
+
+Both projects share the same visual identity and the same principles: open knowledge, transparent methods and tools people can own and inspect.
+
+## Features
+
+- **Prompt to website:** describe your business or idea in natural language and generate a first version with progress and recoverable errors.
+- **Live preview:** see changes immediately and refine the site with follow-up prompts.
+- **Export your code:** download the project's source code as a reproducible archive with a README, dependency manifest, setup instructions and `.env.example` (never real secrets).
+- **GitHub export:** connect GitHub and export a project to a repository.
+- **Deployment and domains:** publish to a platform subdomain and prepare custom domains, with ownership verification.
+- **Database configuration:** a clear path to data and backend features, without claiming a database is configured before credentials, schema and connectivity actually work.
+- **Version history:** keep previous versions and restore an earlier iteration.
+- **Shared component library:** reusable website components, schemas, renderer and editor bridge in `@cms/component-library`.
+- **Dashboard:** projects, deployments, domains, billing, profile, support, and an admin area for users and activity.
+- **Desktop app:** Electron packaging of the API and web app for local use.
 
 ## Product principles
 
-1.  **Prompt to working website:** users describe what they need; AI
-    helps create and iteratively modify a complete website project.
-2.  **Ownable output:** generated projects must be exportable as source
-    code, with setup instructions and an honest list of external
-    services or environment variables required to run them.
-3.  **Hosting choice:** publish to a platform-managed subdomain, and
-    support custom domains when configured.
-4.  **Data features included:** provide a clear path to databases and
-    backend capabilities. Do not imply that a database is configured
-    until credentials, schema, migrations, and connectivity actually
-    work.
-5.  **One consistent product UI:** shared design tokens, reusable
-    components, clear loading/empty/error/success states, responsive
-    behavior, keyboard accessibility, and coherent navigation.
-6.  **Provider-independent AI:** local Ollama for development,
-    production AI providers (including Anthropic Claude) behind a
-    provider interface. Never hard-code a model or provider throughout
-    the application.
-7.  **Secure by default:** isolate customer projects and generated code;
-    validate authorization server-side; keep secrets server-side; treat
-    model output and user prompts as untrusted input.
+1. **Prompt to working website:** users describe what they need and the AI helps create and iteratively modify a complete project.
+2. **Ownable output:** generated projects are exportable as source code with setup instructions and an honest list of required services and environment variables.
+3. **Hosting choice:** publish to a platform-managed subdomain, and support custom domains when configured.
+4. **Honest data features:** do not imply a database is configured until it actually works.
+5. **One consistent product UI:** shared design tokens, reusable components, clear loading, empty, error and success states, responsive layouts and keyboard accessibility.
+6. **Provider-independent AI:** local Ollama for development and production providers behind a provider interface.
+7. **Secure by default:** isolate customer projects and generated code, validate authorization server-side, keep secrets server-side, and treat model output and prompts as untrusted input.
+
+## Technology stack
+
+| Area | Technology |
+| --- | --- |
+| Web | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Radix UI, Lucide icons, React Hook Form, Zod |
+| API | Node.js, TypeScript, Express 5, Zod validation, `mysql2` |
+| Database | MySQL by default; SQLite for desktop/local mode through `node:sqlite` (Node.js 22.5 or later) |
+| AI providers | Ollama, Anthropic, Groq and an OpenAI-compatible adapter, all behind a provider interface |
+| Shared package | `@cms/component-library`: component definitions, document validation, rendering and editor integration |
+| Desktop | Electron with `electron-builder` |
+| Monorepo | npm workspaces and Turborepo |
+
+These reflect the project manifests and source today. Check the package manifests before changing dependencies or relying on a particular script.
 
 ## Project structure
 
@@ -44,399 +81,128 @@ current setup details and the [MIT license](./LICENSE).
 .
 ├── LICENSE
 ├── README.md
-├── PROMPT_LOCAL_AI.md
-├── api/                              # Express API and persistence
-│   ├── lib/                          # Environment, database, logging, audit helpers
-│   ├── sql/                          # MySQL/SQLite schemas and migrations
-│   └── src/
-│       ├── middleware/               # Authentication, authorization, validation, errors
-│       ├── modules/                  # AI providers, documents, sites
-│       ├── routes/                   # API route handlers
-│       ├── app.ts
-│       └── index.ts
-├── deploy/
-│   └── nginx/                        # Nginx deployment configuration
-├── desktop/                          # Electron desktop shell and packaging
-│   ├── scripts/prepare.mjs           # Builds/copies API, web app and shared library
-│   └── src/                          # Electron main and preload processes
-├── packages/
-│   └── component-library/            # Shared components, schemas, renderer and editor bridge
-│       └── src/
-├── web/                              # Next.js App Router application
-│   ├── public/
-│   └── src/
-│       ├── app/                      # Auth, public, dashboard and API routes
-│       ├── components/               # UI, editor, dashboard and marketing components
-│       ├── lib/                      # API, auth, validation and utility code
-│       └── types/
+├── PROMPT_LOCAL_AI.md                 # Prompt and notes for local AI development
+├── turbo.json
+├── package.json
+├── images/                            # Brand assets (logos, app icon, banner)
+├── app/
+│   ├── api/                           # Express API and persistence
+│   │   ├── lib/                       # Environment, database, logging, audit log, SQLite pool
+│   │   ├── sql/                       # MySQL/SQLite schemas and migrations
+│   │   └── src/
+│   │       ├── middleware/            # Authentication, authorization, CSRF, validation, errors, request IDs
+│   │       ├── modules/               # AI providers, document store, public site config
+│   │       ├── routes/                # auth, projects, generation, documents, domains,
+│   │       │                          # deployments, billing, customer, admin, support,
+│   │       │                          # public-sites, health
+│   │       ├── app.ts
+│   │       └── index.ts
+│   ├── web/                           # Next.js App Router application
+│   │   ├── public/                    # Static assets, fonts, icons, images
+│   │   └── src/
+│   │       ├── app/                   # Route groups and API route handlers
+│   │       │   ├── (base)/            # Marketing pages: home, features, pricing, about, FAQ,
+│   │       │   │                      # contact, privacy, terms, cookies
+│   │       │   ├── (auth)/            # Login and signup
+│   │       │   ├── (dashboard)/       # Dashboard, projects, editor, deployments, domains,
+│   │       │   │                      # billing, profile and admin pages
+│   │       │   └── api/               # BFF route handlers (auth, projects, generate, github,
+│   │       │                          # stripe, documents, domains, and more)
+│   │       ├── components/            # ui, layout, navigation, editor, dashboard, forms, ...
+│   │       ├── lib/                   # API client, auth, GitHub, validation, utilities
+│   │       └── types/
+│   └── desktop/                       # Electron desktop shell and packaging
+│       ├── scripts/prepare.mjs        # Builds and copies the API, web app and shared library
+│       └── src/                       # Electron main and preload processes
+└── packages/
+    ├── component-library/             # @cms/component-library
+    │   └── src/                       # components, catalog, document, editor bridge, renderer, theme
+    └── image-library/                 # Shared image assets
 ```
 
-`desktop/app/` is generated by `desktop/scripts/prepare.mjs` for packaging;
-the maintained application source lives in `api/`, `web/`, and
-`packages/component-library/`. Build output such as `dist/` and `.next/`
-is not source code. Refer to each package's README and `package.json` for
-its detailed instructions and scripts.
-
-## Current technology stack
-
-- **Web:** Next.js 16 App Router, React 19, TypeScript, and Tailwind CSS 4.
-  The UI also uses Radix UI primitives, Lucide icons, React Hook Form, and
-  Zod.
-- **API:** Node.js and TypeScript with Express 5. Zod is used for
-  validation; `mysql2` provides the MySQL connection pool.
-- **Database:** MySQL is the default API database. Desktop/local mode can
-  use SQLite through Node's built-in `node:sqlite` (Node.js 22.5 or later),
-  with a compatibility adapter for the API's database calls.
-- **AI:** Provider integrations are implemented behind API-side
-  interfaces, including Ollama, Anthropic, Groq, and an OpenAI-compatible
-  provider adapter. Provider credentials and selection are configured on
-  the server.
-- **Shared package:** `@cms/component-library` provides shared component
-  definitions, document validation, rendering, and editor integration for
-  the API and web app.
-- **Desktop:** Electron packages the API and standalone Next.js app as a
-  desktop application; `electron-builder` creates distributables.
-- **Deployment configuration:** the repository includes an Nginx
-  configuration under `deploy/nginx/`.
-
-These are the technologies present in the project manifests and source
-today; they do not imply that every planned product feature or deployment
-integration is complete. Check the package manifests before changing
-dependencies or relying on a particular script.
+`app/desktop/app/` is generated by `app/desktop/scripts/prepare.mjs` for packaging. The maintained source lives in `app/api/`, `app/web/` and `packages/`. Build output such as `dist/` and `.next/` is not source code.
 
 ## Architecture boundaries
 
-### Web app (`web/`)
+### Web app (`app/web/`)
 
-Owns user experience: marketing pages, authentication screens,
-dashboard, project creation, prompt editor, live preview, project
-settings, deployment and domain UI, billing/profile pages, and admin UI.
-It may call the Express API through a single typed API client.
+Owns the user experience: marketing pages, authentication screens, dashboard, project creation, prompt editor, live preview, project settings, deployment and domain UI, billing and profile pages, and the admin UI. It talks to the Express API through a single typed API client.
 
-Next.js route handlers currently exist under `web/src/app/api/`. During
-migration, inventory each one and classify it: - **UI-specific/BFF
-route:** may remain in Next.js if there is a clear reason. -
-**Business/domain API:** should move to Express and be called through
-the shared frontend API client. - **Legacy/duplicate:** remove only
-after confirming callers and replacing the behavior.
+Next.js route handlers under `app/web/src/app/api/` act as a backend-for-frontend layer. Business and domain logic belongs in the Express API. Existing handlers are being inventoried and migrated carefully, and nothing is removed until its callers are confirmed.
 
-Do not blindly delete route handlers or rewrite auth/payment flows. Keep
-compatibility until a migration is implemented and verified.
+### API (`app/api/`)
 
-### API (`api/`)
+Owns business rules and trusted operations: identity and session verification, authorization, project CRUD, AI orchestration, generated-file operations, database configuration, preview and build jobs, deployment, domain verification, usage limits, billing, audit events and support. The API is the authority for permissions and state changes. A hidden button in the UI is not authorization.
 
-Owns business rules and trusted operations: identity/session
-verification, authorization, project CRUD, AI orchestration,
-generated-file operations, database provisioning/configuration,
-preview/build jobs, deployment, custom-domain verification, usage
-limits, billing integrations, audit events, and support operations.
+### Generated customer projects
 
-The API is the authority for permissions and state changes. A hidden
-frontend button is not authorization.
+A generated site is a separate artifact from the CMS dashboard. Source files, dependency metadata, settings, version history and deployment metadata are stored per project. Builds must run in a restricted, isolated environment, never in the main API process, and platform secrets must never be exposed to generated apps.
 
-### Generated customer project
+## Getting started
 
-A generated site is a separate artifact from the CMS dashboard. Store
-source files, dependency metadata, project settings, version history and
-deployment metadata. Execute builds in a restricted, isolated
-environment; never run arbitrary generated code in the main API process.
-Do not expose platform secrets to generated apps.
+**Requirements:** Node.js 22.5 or later, npm, and MySQL (or SQLite for local mode).
 
-## Main user journey
+Install dependencies and run everything from the repository root:
 
-1.  Sign up and sign in.
-2.  Create a project and enter a prompt, optionally selecting a business
-    type, visual direction and features.
-3.  Generate a first version with progress and recoverable errors.
-4.  Inspect the project in a preview; refine it with follow-up prompts.
-5.  Edit files/settings where supported and review changes before
-    applying risky operations.
-6.  Configure data features and environment variables securely.
-7.  Test the project, inspect logs/build errors, and fix issues.
-8.  Publish to a platform subdomain or connect a custom domain.
-9.  Manage versions, deployments, usage, billing and project settings.
-10. Export a reproducible project archive with README, dependency
-    manifest, setup instructions and `.env.example` (never real
-    secrets).
-
-## UI/UX direction
-
-Aim for a polished, product-led React SaaS interface rather than a
-generic AI-generated landing page.
-
--   Use a consistent spacing scale, typography hierarchy, neutral
-    surfaces, restrained accent color, subtle borders and meaningful
-    empty states.
--   Use icons (for example Lucide if available), not emoji as interface
-    icons.
--   Use shadcn/ui patterns and accessible primitives where useful; do
-    not copy components without understanding their states and keyboard
-    behavior.
--   Prioritize responsive desktop dashboard/editor layouts while
-    ensuring mobile navigation and core flows remain usable.
--   Include loading, skeleton, empty, validation, disabled, success,
-    error and confirmation states.
--   Keep button labels specific. Every visible interactive control must
-    work, navigate somewhere meaningful, or be clearly disabled with an
-    explanation.
--   Avoid fake metrics, fake activity, invented customer testimonials,
-    decorative controls that appear functional, and hard-coded claims
-    about AI or hosting.
--   Use realistic demo data only when clearly labeled as sample/demo
-    content.
-
-## Current implementation status
-
-### Backend (api/) — Complete foundations + auth + projects + AI generation
-
-The Express API in `api/` includes:
-
-**Infrastructure:**
-- Environment validation at startup (`lib/env.ts`)
-- Shared MySQL connection pool with health check (`lib/db.ts`)
-- Structured logging with severity levels (`lib/logger.ts`)
-- Request IDs on every request
-- Centralized error handling middleware
-- Helmet security headers, CORS allowlist, global rate limiting
-
-**Authentication:**
-- Signup (bcrypt password hashing, session creation)
-- Login (credential verification, session start)
-- Logout (session destroy)
-- Session verification (`GET /api/auth/me`)
-- Profile update (PATCH) and account deletion (DELETE)
-
-**Projects:**
-- CRUD with ownership enforcement on every operation
-- Version history tracking
-- Soft delete
-
-**AI Generation:**
-- Provider interface (Ollama for dev, Anthropic for production)
-- Generation job creation and status polling
-- Safe file storage with version boundaries
-- Bounded timeouts and output sizes
-
-**Other routes:**
-- Admin stats and user management (admin role guard)
-- Billing/pricing tiers and subscription info
-- Domain management (platform subdomains + custom domains)
-- Deployment tracking and status
-- Support ticket creation and listing
-
-### Frontend (web/) — Complete marketing pages, dashboard, editor, all pages
-
-All frontend pages connect to the Express API through Next.js route handlers. The mock adapter (`lib/api/mock.ts`) is available for development without a running backend.
-
-### Repository layout (current)
-
-``` text
-.
-├── README.md                 # Product vision and architecture rules
-├── api/
-│   ├── .env.example          # All env vars with placeholders
-│   ├── lib/                  # Shared infrastructure
-│   │   ├── env.ts            # Config validation + typed exports
-│   │   ├── db.ts             # MySQL pool, health check
-│   │   └── logger.ts         # Structured logging
-│   ├── src/
-│   │   ├── app.ts            # Express composition root (routes, middleware)
-│   │   ├── index.ts          # Entry — validates, connects, starts server
-│   │   ├── routes/           # API route modules
-│   │   │   ├── health.routes.ts
-│   │   │   ├── auth.routes.ts       # signup, login, logout, me, profile
-│   │   │   ├── projects.routes.ts   # CRUD + versions + ownership
-│   │   │   ├── generation.routes.ts # AI job creation + status
-│   │   │   ├── admin.routes.ts      # stats + user list (admin)
-│   │   │   ├── billing.routes.ts    # pricing + subscription
-│   │   │   ├── domains.routes.ts    # subdomain + custom domain mgmt
-│   │   │   ├── deployments.routes.ts# deployment tracking
-│   │   │   └── support.routes.ts    # ticket creation/listing
-│   │   ├── middleware/
-│   │   │   ├── authenticate.ts      # Session-based auth
-│   │   │   ├── authorize.ts         # Role checks (admin)
-│   │   │   ├── validate.ts          # Zod input validation
-│   │   │   ├── error-handler.ts     # Centralized Express errors
-│   │   │   ├── request-id.ts        # Request ID assignment
-│   │   │   └── rate-limit.ts
-│   │   └── modules/ai/providers/    # AI provider interface
-│   │       └── base.ts              # Ollama + Anthropic impls
-│   ├── migrations/           # Future schema migrations
-│   └── sql/schema.sql        # 14-table MySQL schema
-└── web/
-    ├── src/app/api/          # Next.js BFF route handlers (proxy → Express)
-    │   ├── auth/             # login, signup, me, verify, role-check
-    │   ├── generate/         # AI generation proxy
-    │   ├── pricing/          # Pricing tiers proxy
-    │   ├── profile/          # profile CRUD
-    │   ├── projects/         # Project CRUD proxy
-    │   ├── deployments/      # Deployment proxy
-    │   ├── domains/          # Domain proxy
-    │   ├── billing/          # Billing proxy
-    │   ├── stripe/           # Stripe (stub) + webhook
-    │   └── support/          # Support ticket proxy
-    ├── src/app/(base)/       # Dashboard pages
-    ├── src/app/(auth)/       # Login/signup pages
-    ├── src/components/ui/    # 15 reusable UI components
-    ├── src/components/layout/# AppShell, sidebar nav
-    ├── src/lib/api/          # Typed API client + mock adapter + proxy helper
-    └── src/types/            # Shared type definitions
-```
-
-### How to run locally
-
-**Backend:**
 ```bash
-cd api
-cp .env.example .env        # then edit DB_PASSWORD
 npm install
-npm run dev                 # → http://localhost:4000
+npm run dev
 ```
 
-**Frontend:**
+Turborepo starts the API at <http://localhost:4000> and the web app at <http://localhost:3000>. Configure environment variables first, as described in the READMEs of `app/api` and `app/web`.
+
+You can also run each app separately:
+
 ```bash
-cd web
-cp .env.example .env.local  # NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
+# API
+cd app/api
+cp .env.example .env          # then edit your database settings
 npm install
-npm run dev                 # → http://localhost:3000
+npm run dev                   # http://localhost:4000
+
+# Web
+cd app/web
+cp .env.example .env.local    # NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
+npm install
+npm run dev                   # http://localhost:3000
 ```
 
-### Security highlights
+A typed mock adapter (`app/web/src/lib/api/mock.ts`) lets you work on the frontend without a running backend. Mock data is always clearly labeled as demo content.
 
-- Passwords hashed with bcrypt (cost factor 12)
-- Sessions via secure cookie, never stored client-side
-- All project operations enforce server-side ownership checks
-- Input validation at every API boundary (Zod + manual checks)
-- Helmet security headers on all responses
-- CORS limited to configured origin allowlist
-- Rate limiting on auth endpoints (20 req/15min) and globally
-- AI model output treated as untrusted — validated before use
-- No secrets returned to clients in any response
+For local AI development with Ollama, see [`PROMPT_LOCAL_AI.md`](./PROMPT_LOCAL_AI.md).
 
-## Delivery phases --- mandatory order
+## Security
 
-The project is currently in an early scaffold. Work in these phases; do
-not skip ahead because a backend feature seems exciting.
+- Passwords hashed with bcrypt.
+- Secure, HttpOnly session cookies, with CSRF protection for state-changing requests.
+- Project ownership and role permissions enforced server-side on every operation.
+- Input validation at every API boundary with Zod.
+- Helmet security headers, a CORS origin allowlist, and rate limiting on authentication and globally.
+- AI model output and user prompts treated as untrusted and validated before use.
+- Secrets never returned to clients, committed to the repository, or written to logs.
+- Payment webhooks verified cryptographically and handled idempotently.
+- Custom domains verified before activation to prevent domain takeover.
+- Export archives exclude secrets, credentials, private uploads and other customers' data.
 
-### Phase 0 --- Audit and plan
+Never commit `.env` files, API keys, cookies, tokens or private keys. Commit `.env.example` files with placeholders only. To report a vulnerability, follow the private reporting instructions in [SECURITY.md](./SECURITY.md) rather than opening a public issue.
 
--   Read root, web and api docs and inspect all current source files and
-    package manifests.
--   Record what exists, what works, what is duplicated, and what is only
-    a placeholder.
--   Build a route/page inventory and feature matrix.
--   Propose folder structures and component architecture before broad
-    edits.
--   Preserve existing behavior unless a change is required and
-    documented.
+## Contributing
 
-### Phase 1 --- Frontend architecture and design system
+Contributions are welcome. Please follow the [contribution guide](./CONTRIBUTING.md) and [Code of Conduct](./CODE_OF_CONDUCT.md). Keep changes focused, run the available lint, typecheck, tests and production build before opening a pull request, and update documentation when architecture, scripts, environment variables or contracts change. A feature is done only when its UI and API behavior, loading and error states, authorization and validation, and tests or documented manual verification are in place.
 
--   Finalize frontend folder structure.
--   Establish tokens, typography, layout primitives, buttons, inputs,
-    cards, dialogs, dropdowns, tabs, badges, tables, toasts, skeletons,
-    empty/error states, navigation and page containers.
--   Use existing packages first; add shadcn/ui or other dependencies
-    only after checking compatibility and documenting the choice.
--   Build reusable components before building every page independently.
+For project decision-making, see [governance](./GOVERNANCE.md); for reporting
+security issues, see the [security policy](./SECURITY.md). The repository
+layout is described in [STRUCTURE.md](./STRUCTURE.md).
 
-### Phase 2 --- Complete frontend pages
+## License
 
--   Implement all page layouts and responsive behavior using shared
-    components.
--   Connect all controls to frontend state, navigation, validation, and
-    clearly defined typed service interfaces.
--   Where the backend is not ready, use a typed mock adapter with
-    explicit demo/mock status. Do not pretend persistence or real
-    deployment occurred.
--   Implement accessible forms and realistic loading, empty, success and
-    failure states.
--   Audit every button, link, menu, modal and form.
+Original code and documentation in this repository are licensed under the
+[Apache License, Version 2.0](./LICENSE). Third-party dependencies, assets and
+other included materials may have separate terms; see
+[LICENSES.md](./LICENSES.md) and [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
-### Phase 3 --- Frontend feature and UX audit
+---
 
--   Test every route, viewport, navigation item and interactive state.
--   Run lint, typecheck, build and tests where available.
--   Fix errors before starting backend implementation.
--   Document the frontend API contracts required from Express.
-
-### Phase 4 --- Backend architecture and implementation
-
--   Only after the UI and frontend audit are complete, build the Express
-    API in coherent modules.
--   Implement configuration validation, request IDs, structured logging,
-    centralized error handling, validation, auth/authorization, rate
-    limits, audit logging, health/readiness endpoints and tests.
--   Implement domain services and persistence behind interfaces; do not
-    put all logic in `src/index.ts`.
--   Implement provider adapters for Ollama and production providers.
--   Implement project storage, versioning, build/deploy job
-    abstractions, domains, exports and billing integrations
-    incrementally.
--   Use migrations and explicit schema/version management for persistent
-    data.
-
-### Phase 5 --- Integration and production readiness
-
--   Replace mock adapters with real API calls one feature at a time.
--   Verify auth, ownership checks, failure behavior, retry behavior,
-    logs and rate limits.
--   Test export/import and a complete publish lifecycle in a safe
-    staging environment.
--   Complete security review, accessibility review, dependency audit,
-    backups and operational documentation.
-
-## Quality gates
-
-Before declaring a task complete: - Inspect the diff and keep changes
-focused. - Run available lint, typecheck, tests and production build;
-state exactly which commands passed or failed. - Test the relevant
-page/API path, not only compilation. - Check mobile/responsive layout
-and keyboard behavior for UI changes. - Confirm secrets are not
-committed or returned to clients. - Confirm errors are actionable to
-users and detailed enough in redacted server logs. - Update
-documentation when architecture, scripts, env vars or contracts
-change. - Do not claim a feature works unless it has been implemented
-and verified.
-
-## Security requirements
-
--   Never commit `.env` files, API keys, cookies, tokens, private keys
-    or customer secrets.
--   Commit `.env.example` files with placeholders only.
--   Validate environment at startup; fail clearly for required
-    production values.
--   Enforce project ownership and role permissions on every API
-    operation.
--   Use secure, HttpOnly, SameSite cookies where cookie sessions are
-    chosen; protect state-changing requests against CSRF as appropriate.
--   Rate-limit authentication, AI generation, uploads and expensive
-    operations.
--   Limit request size, upload size, prompt length, output size,
-    execution time and resource usage.
--   Treat prompts, uploaded files, tool output and generated code as
-    untrusted.
--   Never execute generated code in the API process or a privileged
-    shared runtime.
--   Redact secrets and personal data from logs; never log full auth
-    headers, cookies or provider keys.
--   Verify payment webhooks cryptographically and make handlers
-    idempotent.
--   Custom domain verification must prevent domain takeover; validate
-    DNS/ownership before activation.
--   Export archives must not include secrets, credentials, private
-    uploads or other customers' data.
-
-## Definition of done
-
-A feature is done only when its UI and/or API behavior is implemented,
-loading and error states exist, authorization and validation are covered
-where applicable, tests or a documented manual verification are
-performed, and relevant documentation is updated.
-
-## License and credits
-
-Copyright (c) 2026 Jaakko Maatiala. The original project code in this
-repository is licensed under the MIT License; see [LICENSE](./LICENSE).
-Third-party dependencies, assets, and other included materials remain
-subject to their respective licenses and notices.
+<p align="center">
+  <sub>Polityra CMS is part of the <a href="https://github.com/Polityra">Polityra</a> organization, the home of Open Polityra.</sub>
+</p>
