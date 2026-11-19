@@ -1,9 +1,8 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./images/polityra-cms-logo-dark.png">
-  <img src="./images/polityra-cms-logo-light.png" alt="Polityra CMS" width="420">
-</picture>
+<p align="center">
+  <img src="./images/polityra-cms-banner.png" alt="Polityra CMS: Open content. Full control. Better websites." width="100%">
+</p>
 
 <br />
 
@@ -13,9 +12,7 @@
 
 </div>
 
-<p align="center">
-  <img src="./images/polityra-cms-banner.png" alt="Polityra CMS: Open content. Full control. Better websites." width="100%">
-</p>
+
 
 ---
 
